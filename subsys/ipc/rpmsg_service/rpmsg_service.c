@@ -31,8 +31,8 @@ static struct rpmsg_virtio_shm_pool shpool;
 
 static struct {
 	const char *name;
+	struct rpmsg_endpoint *ep;
 	rpmsg_ept_cb cb;
-	struct rpmsg_endpoint ep;
 	volatile bool bound;
 } endpoints[CONFIG_RPMSG_SERVICE_NUM_ENDPOINTS];
 
@@ -51,7 +51,7 @@ static void ns_bind_cb(struct rpmsg_device *rdev,
 
 	for (int i = 0; i < CONFIG_RPMSG_SERVICE_NUM_ENDPOINTS; ++i) {
 		if (strcmp(name, endpoints[i].name) == 0) {
-			err = rpmsg_create_ept(&endpoints[i].ep,
+			err = rpmsg_create_ept(endpoints[i].ep,
 						   rdev,
 						   name,
 						   RPMSG_ADDR_ANY,
@@ -64,6 +64,7 @@ static void ns_bind_cb(struct rpmsg_device *rdev,
 					" failed wirh error %d", log_strdup(name), err);
 			} else {
 				endpoints[i].bound = true;
+				LOG_INF("endpoint bound");
 			}
 
 			return;
@@ -110,7 +111,7 @@ static int rpmsg_service_init(const struct device *dev)
 
 	for (int i = 0; i < CONFIG_RPMSG_SERVICE_NUM_ENDPOINTS; ++i) {
 		if (endpoints[i].name) {
-			err = rpmsg_create_ept(&endpoints[i].ep,
+			err = rpmsg_create_ept(endpoints[i].ep,
 						rdev,
 						endpoints[i].name,
 						RPMSG_ADDR_ANY,
@@ -131,34 +132,34 @@ static int rpmsg_service_init(const struct device *dev)
 	return 0;
 }
 
-int rpmsg_service_register_endpoint(const char *name, rpmsg_ept_cb cb)
+int rpmsg_service_register_endpoint(const char *name, struct rpmsg_endpoint *ep, rpmsg_ept_cb cb)
 {
 	if (ep_crt_started) {
 		return -EINPROGRESS;
 	}
 
 	for (int i = 0; i < CONFIG_RPMSG_SERVICE_NUM_ENDPOINTS; ++i) {
-		if (!endpoints[i].name) {
+		if (!endpoints[i].ep) {
+			endpoints[i].ep = ep;
 			endpoints[i].name = name;
 			endpoints[i].cb = cb;
-
-			return i;
+			return 0;
 		}
 	}
 
-	LOG_ERR("No free slots to register endpoint %s", log_strdup(name));
-
+	LOG_ERR("No free slots to register endpoint");
 	return -ENOMEM;
 }
 
-bool rpmsg_service_endpoint_is_bound(int endpoint_id)
+bool rpmsg_service_endpoint_is_bound(struct rpmsg_endpoint *ep)
 {
-	return endpoints[endpoint_id].bound;
-}
+	for (int i = 0; i < CONFIG_RPMSG_SERVICE_NUM_ENDPOINTS; i++) {
+		if (endpoints[i].ep == ep) {
+			return endpoints[i].bound;
+		}
+	}
 
-int rpmsg_service_send(int endpoint_id, const void *data, size_t len)
-{
-	return rpmsg_send(&endpoints[endpoint_id].ep, data, len);
+	return false;
 }
 
 SYS_INIT(rpmsg_service_init, POST_KERNEL, CONFIG_RPMSG_SERVICE_INIT_PRIORITY);
