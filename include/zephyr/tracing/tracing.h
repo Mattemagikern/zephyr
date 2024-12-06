@@ -428,6 +428,19 @@
 #define sys_port_trace_k_work_queue_start_exit(queue)
 
 /**
+ * @brief Trace stop of a Work Queue call entry
+ * @param queue Work Queue structure
+ */
+#define sys_port_trace_k_work_queue_stop_enter(queue)
+
+/**
+ * @brief Trace stop of a Work Queue call exit
+ * @param queue Work Queue structure
+ * @param ret Return value
+ */
+#define sys_port_trace_k_work_queue_stop_exit(queue, ret)
+
+/**
  * @brief Trace Work Queue drain call entry
  * @param queue Work Queue structure
  */

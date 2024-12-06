@@ -822,15 +822,18 @@ int k_work_queue_stop(struct k_work_q *queue)
 {
 	__ASSERT_NO_MSG(queue);
 
+	SYS_PORT_TRACING_OBJ_FUNC_ENTER(k_work_queue, stop, queue);
 	k_spinlock_key_t key = k_spin_lock(&lock);
 
 	if (!flag_test(&queue->flags, K_WORK_QUEUE_STARTED_BIT)) {
 		k_spin_unlock(&lock, key);
+		SYS_PORT_TRACING_OBJ_FUNC_EXIT(k_work_queue, stop, queue, -ENODEV);
 		return -ENODEV;
 	}
 
 	if (!flag_test(&queue->flags, K_WORK_QUEUE_PLUGGED_BIT)) {
 		k_spin_unlock(&lock, key);
+		SYS_PORT_TRACING_OBJ_FUNC_EXIT(k_work_queue, stop, queue, -EBUSY);
 		return -EBUSY;
 	}
 
@@ -839,6 +842,7 @@ int k_work_queue_stop(struct k_work_q *queue)
 	k_spin_unlock(&lock, key);
 	k_thread_join(&queue->thread, K_FOREVER);
 
+	SYS_PORT_TRACING_OBJ_FUNC_EXIT(k_work_queue, stop, queue, 0);
 	return 0;
 }
 

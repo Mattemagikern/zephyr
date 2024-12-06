@@ -90,6 +90,8 @@ extern "C" {
 #define sys_port_trace_k_work_queue_init(queue)
 #define sys_port_trace_k_work_queue_start_enter(queue)
 #define sys_port_trace_k_work_queue_start_exit(queue)
+#define sys_port_trace_k_work_queue_stop_enter(queue)
+#define sys_port_trace_k_work_queue_stop_exit(queue, ret)
 #define sys_port_trace_k_work_queue_drain_enter(queue)
 #define sys_port_trace_k_work_queue_drain_exit(queue, ret)
 #define sys_port_trace_k_work_queue_unplug_enter(queue)
