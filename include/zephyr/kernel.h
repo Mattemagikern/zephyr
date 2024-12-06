@@ -3606,6 +3606,19 @@ int k_work_queue_drain(struct k_work_q *queue, bool plug);
  */
 int k_work_queue_unplug(struct k_work_q *queue);
 
+/** @brief Stop a work queue.
+ *
+ * This stops the work queue thread and releases its resources. This should be
+ * invoked when the work queue is no longer needed.
+ *
+ * @param queue pointer to the queue structure.
+ *
+ * @retval 0 if the work queue was stopped
+ * @retval -ENODEV if the work queue was not started
+ * @retval -EBUSY if the work queue is actively processing work items
+ */
+int k_work_queue_stop(struct k_work_q *queue);
+
 /** @brief Initialize a delayable work structure.
  *
  * This must be invoked before scheduling a delayable work structure for the
@@ -3915,6 +3928,8 @@ enum {
 	K_WORK_QUEUE_DRAIN = BIT(K_WORK_QUEUE_DRAIN_BIT),
 	K_WORK_QUEUE_PLUGGED_BIT = 3,
 	K_WORK_QUEUE_PLUGGED = BIT(K_WORK_QUEUE_PLUGGED_BIT),
+	K_WORK_QUEUE_STOP_BIT = 4,
+	K_WORK_QUEUE_STOP = BIT(K_WORK_QUEUE_STOP_BIT),
 
 	/* Static work queue flags */
 	K_WORK_QUEUE_NO_YIELD_BIT = 8,
