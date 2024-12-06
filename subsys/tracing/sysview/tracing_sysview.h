@@ -180,6 +180,12 @@ void sys_trace_thread_info(struct k_thread *thread);
 #define sys_port_trace_k_work_queue_start_exit(queue)                                              \
 	SEGGER_SYSVIEW_RecordEndCall(TID_WORK_QUEUE_START)
 
+#define sys_port_trace_k_work_queue_stop_enter(queue)                                              \
+	SEGGER_SYSVIEW_RecordU32(TID_WORK_QUEUE_STOP, (uint32_t)(uintptr_t)queue)
+
+#define sys_port_trace_k_work_queue_stop_exit(queue, ret)                                          \
+	SEGGER_SYSVIEW_RecordEndCallU32(TID_WORK_QUEUE_STOP, (uint32_t)ret)
+
 #define sys_port_trace_k_work_queue_drain_enter(queue)                                             \
 	SEGGER_SYSVIEW_RecordU32(TID_WORK_QUEUE_DRAIN, (uint32_t)(uintptr_t)queue)
 
