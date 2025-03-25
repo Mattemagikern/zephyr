@@ -1,0 +1,8 @@
+tests:
+  kernel.workqs.priority:
+    min_ram: 16
+    integration_platforms:
+      - qemu_x86
+    tags:
+      - kernel
+      - workqueue
