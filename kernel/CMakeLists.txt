@@ -85,7 +85,8 @@ kernel_sources_ifdef(CONFIG_MULTITHREADING
   sem.c
   stack.c
   system_work_q.c
-  work.c
+  #work.c
+  workq.c
   condvar.c
   thread.c
   sched.c
