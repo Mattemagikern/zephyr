@@ -1101,6 +1101,8 @@ config USE_SWITCH_SUPPORTED
 
 rsource "smp/Kconfig"
 
+rsource "workqs/Kconfig"
+
 config TICKLESS_KERNEL
 	bool "Tickless kernel"
 	default y if TICKLESS_CAPABLE

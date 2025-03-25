@@ -101,6 +101,8 @@ else()
     scheduler.c
     )
 
+  add_subdirectory_ifdef(CONFIG_MULTITHREADING workqs)
+
   if(CONFIG_MULTITHREADING)
     if(CONFIG_SCHED_SCALABLE OR CONFIG_WAITQ_SCALABLE)
       kernel_sources(priority_queues.c)
