@@ -1,0 +1,12 @@
+sample:
+  description: priority work queue demo
+  name: workq priority demo
+common:
+  tags:
+    - kernel
+    - workqueue
+tests:
+  sample.kernel.workqs.priority:
+    build_only: true
+    integration_platforms:
+      - native_sim
