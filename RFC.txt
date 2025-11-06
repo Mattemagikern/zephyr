@@ -1,0 +1,48 @@
+Title: Queue centric workqueue
+
+Problem Description:
+
+Current Zephyr workqueue model is "work-centric": callers allocate k_work/k_work_delayable objects
+(mostly statically), submit them to a the queue. The work item is then processed by a single worker thread
+associated with the workqueue, and the work item is considered "active" from the time the work item
+is submitted until the work item is fully complete and the queue thread tries to fetch the next work item.
+
+This makes dynamic allocation awkward and complicates ownership/life-cycles.
+The primary cause of this is that work items state is managed inside of the work item itself instead
+of being in relation to the queue.
+
+
+This leads to the work item being active after the work item has completed its callback, this causes
+the work item to not be able to be dynamically allocated since it would cause memory errors if the
+work item is freed while still active.
+
+< image of livecycle differences >
+
+Proposed change summary:
+The proposition is to add a queue-centric work queue (/sys/workq) API and implementation that treats work
+items as independently allocated queue elements (struct work_item) instead of the current k_work
+model that is centered on statically declared work objects. This enables dynamic allocation and
+freeing of work items (k_malloc/k_free), multiple worker threads attached to a queue, delayed work,
+cancellation, and simple flush/sync primitives.
+
+Detailed RFC:
+
+Dependencies:
+
+Concern's and unresolved questions:
+
+Alternatives considered:
+
+
+
+----- thinkthink think
+
+- livecycle makes dynamic allocations of work items very akward.
+- delayed work is very annoying to clean-up.
+- delayed work items are huge (struct k_work_delayable is 48 bytes)
+- delayed work cancel & sync doesn't have a timeout -> can block forever
+- k_work_sync items are uneccesarily added to structs & complicate life-cycles of work items.
+- multiple worker threads per queue is not possible today.
+- all delayed works are handled on a single timer, how to clean this up? (test cases etc).
+- sync mechanisms are not cancellable or timeoutable.
+
