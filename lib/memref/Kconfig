@@ -1,0 +1,23 @@
+# Copyright (c) 2025 Måns Ansgariusson <mansgariusson@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
+menu "Memrefs: shared memory blocks allocator"
+
+config MEMREF
+	bool "Shared memory references"
+	help
+	  This option enables the shared memory references API, which
+	  allows multiple threads to share ownership of a memory block
+	  through reference counting.
+
+if MEMREF
+
+config MEMREF_VALIDATION
+	bool "Memref validation"
+	default n
+	help
+	  This option enables validation checks for memory references,
+	  ensuring that operations on memrefs are safe and valid.
+endif # SYS_MEMREF
+
+endmenu
