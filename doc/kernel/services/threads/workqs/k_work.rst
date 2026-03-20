@@ -1,7 +1,7 @@
 .. _workqueues_v2:
 
-Workqueue Threads
-#################
+k_work: Workqueues
+##################
 
 .. contents::
     :local:
