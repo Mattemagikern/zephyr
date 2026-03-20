@@ -6,7 +6,7 @@
 /**
  * @file
  * @brief Shared engine for the queue-centric work queue variants
- * @ingroup workq_apis
+ * @ingroup workq_common_apis
  */
 
 #ifndef ZEPHYR_INCLUDE_WORKQS_ENGINE_H_
@@ -16,13 +16,23 @@
 
 /**
  * @defgroup workq_apis Work queue (workq)
- * @ingroup datastructure_apis
+ * @ingroup kernel_apis
  * @brief Queue-centric work queue with multi-threaded execution
  *
- * The work queue is built from a shared engine and thin variants. The engine
- * owns the worker threads, the delayed-work timeout, and the queue state
- * machine; a variant (for example @ref workq_fifo or @ref workq_prio) embeds
- * the engine and supplies the ordering policy used to enqueue ready work.
+ * A work queue defers work from interrupt context or from a high-priority
+ * thread to one or more dedicated worker threads. Each variant (for example
+ * @ref workq_fifo_apis or @ref workq_prio_apis) supplies the policy that
+ * determines the order in which ready work is executed.
+ */
+
+/**
+ * @defgroup workq_common_apis Common work queue types
+ * @ingroup workq_apis
+ * @brief Types shared by every work queue variant
+ *
+ * These types are used by all work queue variants: the handler signature and
+ * the work item header embedded in every work item, together with the worker
+ * thread object and its configuration.
  * @{
  */
 
@@ -34,6 +44,10 @@ struct work_base;
  * @param work Work item being executed.
  */
 typedef void (*work_fn_t)(struct work_base *work);
+
+/**
+ * @cond INTERNAL_HIDDEN
+ */
 
 /** @brief Work queue state flags. */
 enum workq_flags {
@@ -52,11 +66,15 @@ enum workq_thread_flags {
 };
 
 /**
+ * INTERNAL_HIDDEN @endcond
+ */
+
+/**
  * @brief Base work item shared by all work queue variants.
  *
- * A variant embeds this as its first member and recovers its concrete type with
- * @ref CONTAINER_OF. All the members are internal and should not be accessed
- * directly.
+ * A variant embeds this and recovers its concrete type with @ref CONTAINER_OF.
+ * All items submitted to one queue must be of the same variant type. All the
+ * members are internal and should not be accessed directly.
  */
 struct work_base {
 /**
@@ -71,15 +89,16 @@ struct work_base {
 };
 
 /**
- * @brief Shared engine backing every work queue variant.
- *
- * A variant embeds this as its first member. All the members are internal and
- * should not be accessed directly.
- */
-struct workq_engine {
-/**
  * @cond INTERNAL_HIDDEN
  */
+
+/**
+ * @brief Shared engine backing every work queue variant.
+ *
+ * A variant embeds this as a member named @c engine. All the members are
+ * internal and should not be accessed directly.
+ */
+struct workq_engine {
 	uint32_t flags;
 	struct k_spinlock lock;
 	struct _timeout timeout;
@@ -89,10 +108,11 @@ struct workq_engine {
 	_wait_q_t idle;
 	_wait_q_t drain;
 	void (*enqueue)(struct workq_engine *wq, struct work_base *work);
+};
+
 /**
  * INTERNAL_HIDDEN @endcond
  */
-};
 
 /** @brief Configuration for a work queue thread. */
 struct workq_thread_config {
@@ -153,10 +173,6 @@ int z_workq_thread_stop(struct workq_thread *wt, k_timeout_t timeout);
 void z_workq_thread_fn(void *arg1, void *arg2, void *arg3);
 
 /**
- * INTERNAL_HIDDEN @endcond
- */
-
-/**
  * @brief Statically initialize a work queue engine in the open state.
  *
  * @param obj Name of the variant object embedding the engine.
@@ -173,10 +189,6 @@ void z_workq_thread_fn(void *arg1, void *arg2, void *arg3);
 	.delayed = SYS_SLIST_STATIC_INIT(&(obj).engine.delayed),	\
 	.enqueue = (enqueue_fn),					\
 }
-
-/**
- * @cond INTERNAL_HIDDEN
- */
 
 #define Z_WORKQ_THREAD_CONFIG(cfg_name, thread_name, priority)	\
 	static const struct workq_thread_config cfg_name = {	\

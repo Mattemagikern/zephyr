@@ -33,7 +33,7 @@ synchronization.
    threads/index.rst
    scheduling/index.rst
    threads/system_threads.rst
-   threads/workqueue.rst
+   threads/workqs/index.rst
    threads/nothread.rst
    interrupts.rst
    polling.rst

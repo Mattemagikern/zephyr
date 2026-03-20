@@ -261,6 +261,7 @@ REDIRECTS = (
     ('develop/test/twister_statuses', 'develop/twister/twister_statuses'),
     ('hardware/peripherals/mipi_dbi', 'hardware/peripherals/display/index'),
     ('hardware/peripherals/mipi_dsi', 'hardware/peripherals/display/index'),
+    ('kernel/services/threads/workqueue', 'kernel/services/threads/workqs/k_work'),
     ('samples/bluetooth/bap_broadcast_assistant/README', 'samples/bluetooth/audio/bap_broadcast_assistant/README'),
     ('samples/bluetooth/bap_broadcast_sink/README', 'samples/bluetooth/audio/bap_broadcast_sink/README'),
     ('samples/bluetooth/bap_broadcast_source/README', 'samples/bluetooth/audio/bap_broadcast_source/README'),

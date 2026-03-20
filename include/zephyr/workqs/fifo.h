@@ -6,7 +6,7 @@
 /**
  * @file
  * @brief Public API for the FIFO work queue variant
- * @ingroup workq_apis
+ * @ingroup workq_fifo_apis
  */
 
 #ifndef ZEPHYR_INCLUDE_WORKQS_FIFO_H_
@@ -14,7 +14,12 @@
 #include <zephyr/workqs/engine.h>
 
 /**
- * @addtogroup workq_apis
+ * @defgroup workq_fifo_apis FIFO work queue
+ * @ingroup workq_apis
+ * @brief Public API for the FIFO work queue variant
+ *
+ * Work items submitted to a FIFO work queue are executed in submission
+ * order.
  * @{
  */
 

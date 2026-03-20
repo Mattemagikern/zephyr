@@ -6,7 +6,7 @@
 /**
  * @file
  * @brief Public API for the priority work queue variant
- * @ingroup workq_apis
+ * @ingroup workq_prio_apis
  */
 
 #ifndef ZEPHYR_INCLUDE_WORKQS_PRIORITY_H_
@@ -14,7 +14,13 @@
 #include <zephyr/workqs/engine.h>
 
 /**
- * @addtogroup workq_apis
+ * @defgroup workq_prio_apis Priority work queue
+ * @ingroup workq_apis
+ * @brief Public API for the priority work queue variant
+ *
+ * Work items submitted to a priority work queue carry a priority and are
+ * executed in ascending priority order; a lower value runs first. Items of
+ * equal priority are executed in submission order.
  * @{
  */
 
