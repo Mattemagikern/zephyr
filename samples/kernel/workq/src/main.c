@@ -10,8 +10,9 @@
 LOG_MODULE_REGISTER(worq_sample, LOG_LEVEL_DBG);
 
 #define PRIORITY 0
+#define WORKQ_CAP 16
 
-WORKQ_DEFINE(my_workq);
+WORKQ_DEFINE(my_workq, WORKQ_CAP);
 WORKQ_THREAD_DEFINE(thread1, my_workq, 1024, PRIORITY);
 WORKQ_THREAD_DEFINE(thread2, my_workq, 1024, PRIORITY);
 

@@ -7,6 +7,7 @@
 #define _WORKQ_H
 #include <zephyr/kernel.h>
 #include <zephyr/sys/slist.h>
+#include <zephyr/sys/min_heap.h>
 
 struct work_item;
 typedef void (*work_fn_t)(struct work_item *work);
@@ -24,7 +25,6 @@ enum workq_thread_flags {
 struct work_item {
 	/* private members */
 	work_fn_t fn;
-	sys_snode_t node;
 	k_timepoint_t exec_time;
 };
 
@@ -32,10 +32,8 @@ struct workq {
 	/* private members */
 	uint32_t flags;
 	struct k_spinlock lock;
-	struct _timeout timeout;
+	struct min_heap heap;
 	sys_slist_t active;
-	sys_slist_t pending;
-	sys_slist_t delayed;
 	_wait_q_t idle;
 	_wait_q_t drain;
 };
@@ -59,18 +57,35 @@ struct workq_thread {
 };
 
 /**
+ * @brief Comparator for work items in the workq min-heap.
+ *
+ * Compares two slots (each pointing to a `struct work_item *`) by their
+ * @ref work_item::exec_time so that the earliest item is the heap root.
+ *
+ * @param a Pointer to the first heap slot.
+ * @param b Pointer to the second heap slot.
+ * @retval <0 if @p a should run before @p b
+ * @retval >0 if @p a should run after @p b
+ * @retval 0 if equal
+ */
+int workq_cmp(const void *a, const void *b);
+
+/**
  * @brief Initialize a work item
  *
  * @param item Work item to initialize
- * @param work_fn Function to call when the work item is executed
+ * @param fn Function to call when the work item is executed
  */
 void work_init(struct work_item *item, work_fn_t fn);
 
 /** @brief Initialize a work queue and set it to the open state
  *
  * @param wq Work queue to initialize
+ * @param storage Backing storage for the min-heap. Must point to an array of
+ *                @p cap `struct work_item *` entries.
+ * @param cap Capacity of the queue (max number of pending/delayed items).
  */
-void workq_init(struct workq *wq);
+void workq_init(struct workq *wq, struct work_item **storage, size_t cap);
 
 /**
  * @brief Opens a work queue for submission
@@ -114,7 +129,10 @@ int workq_run(struct workq *wq, k_timeout_t timeout);
  *
  * @param wq Work queue to submit to
  * @param item Work item to submit
- * @retval 0 if work was submitted, negative errno code if failed
+ * @retval 0 if work was submitted
+ * @retval -EAGAIN if the work queue is closed
+ * @retval -EALREADY if the work item is already pending
+ * @retval -ENOMEM if the work queue is full
  */
 int workq_submit(struct workq *wq, struct work_item *item);
 
@@ -124,7 +142,10 @@ int workq_submit(struct workq *wq, struct work_item *item);
  * @param wq Work queue to submit to
  * @param item Work item to submit
  * @param delay Delay before executing the work item
- * @retval 0 if work was submitted, negative errno code if failed
+ * @retval 0 if work was submitted
+ * @retval -EBUSY if the work queue is closed
+ * @retval -EALREADY if the work item is already pending
+ * @retval -ENOMEM if the work queue is full
  */
 int workq_delayed_submit(struct workq *wq, struct work_item *item, k_timeout_t delay);
 
@@ -133,7 +154,9 @@ int workq_delayed_submit(struct workq *wq, struct work_item *item, k_timeout_t d
  *
  * @param wq Work queue to cancel from
  * @param item Work item to cancel
- * @retval 0 if work was canceled, negative errno code if failed
+ * @retval 0 if work was canceled
+ * @retval -EBUSY if the work item is currently executing
+ * @retval -ENOENT if the work item is not pending
  */
 int workq_cancel(struct workq *wq, struct work_item *item);
 
@@ -155,30 +178,43 @@ int workq_reschedule(struct workq *wq, struct work_item *item, k_timeout_t delay
  */
 int workq_drain(struct workq *wq, k_timeout_t timeout);
 
-/* FIXME: PR for upstream */
-#define Z_TIMEOUT_INITIALIZER(obj)				\
-{								\
-	.node = SYS_DLIST_STATIC_INIT(&obj.node),		\
+/**
+ * @brief Statically initialize a work queue.
+ *
+ * @param obj Variable name of the workq being initialized.
+ * @param _storage Pointer to backing storage (`struct work_item *[cap]`).
+ * @param _cap Capacity (number of slots in @p _storage).
+ */
+#define WORKQ_INITIALIZER(obj, _storage, _cap)					\
+{										\
+	.flags = WORKQ_FLAG_OPEN,						\
+	.lock = (struct k_spinlock){},						\
+	.heap = {								\
+		.storage = (_storage),						\
+		.capacity = (_cap),						\
+		.elem_size = sizeof(struct work_item *),			\
+		.size = 0,							\
+		.cmp = workq_cmp,						\
+	},									\
+	.active = SYS_SLIST_STATIC_INIT(&obj.active),				\
+	.idle = Z_WAIT_Q_INIT(&obj.idle),					\
+	.drain = Z_WAIT_Q_INIT(&obj.drain),					\
 }
 
-#define WORKQ_INITIALIZER(obj)					\
-{								\
-	.flags = WORKQ_FLAG_OPEN,				\
-	.lock = (struct k_spinlock){},				\
-	.idle = Z_WAIT_Q_INIT(&obj.idle),			\
-	.drain = Z_WAIT_Q_INIT(&obj.drain),			\
-	.active = SYS_SLIST_STATIC_INIT(&obj.active),		\
-	.pending = SYS_SLIST_STATIC_INIT(&obj.pending),		\
-	.delayed = SYS_SLIST_STATIC_INIT(&obj.delayed),		\
-	.timeout = Z_TIMEOUT_INITIALIZER(obj.timeout),		\
-}
-
-#define WORKQ_DEFINE(name) \
-	struct workq name = WORKQ_INITIALIZER(name)
+/**
+ * @brief Statically define a work queue with backing storage.
+ *
+ * @param name Symbol name for the @c workq object.
+ * @param cap Capacity (max number of pending/delayed items).
+ */
+#define WORKQ_DEFINE(name, cap)							\
+	static struct work_item *name##_storage[cap];				\
+	struct workq name = WORKQ_INITIALIZER(name, name##_storage, cap)
 
 /** @brief Start a work queue thread
  *
- * @param wq Work queue to start
+ * @param wt Work queue thread to initialize
+ * @param wq Work queue to associate with the thread
  * @param stack Stack for the work queue thread
  * @param stack_size Size of the stack
  * @param cfg Configuration for the work queue thread
@@ -197,6 +233,7 @@ int workq_thread_start(struct workq_thread *wqt);
  * @brief Stop a work queue thread
  *
  * @param wqt Work queue thread to stop
+ * @param timeout Time to wait for the thread to stop
  * @retval 0 if work queue thread was stopped, negative errno code if failed
  */
 int workq_thread_stop(struct workq_thread *wqt, k_timeout_t timeout);

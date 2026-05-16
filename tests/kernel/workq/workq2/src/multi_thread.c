@@ -24,6 +24,7 @@ static void work_fn(struct work_item *item)
 }
 
 #define STACK_SIZE 1024
+#define MT_WORKQ_CAP 16
 K_THREAD_STACK_ARRAY_DEFINE(thread_stacks, 3, STACK_SIZE);
 static struct workq_thread wqts[3];
 
@@ -31,8 +32,9 @@ ZTEST(multi_thread, open_close)
 {
 	struct workq q;
 	struct workq_thread wqt;
+	struct work_item *storage[MT_WORKQ_CAP];
 
-	workq_init(&q);
+	workq_init(&q, storage, MT_WORKQ_CAP);
 	workq_thread_init(&wqt, &q, thread_stacks[0], STACK_SIZE, NULL);
 	zassert_ok(workq_thread_start(&wqt), "workq_thread_start failed");
 	k_sleep(K_MSEC(50)); /* Give some time for thread to start */
@@ -43,8 +45,9 @@ ZTEST(multi_thread, test_submit)
 {
 	struct workq q;
 	struct container *c;
+	struct work_item *storage[MT_WORKQ_CAP];
 
-	workq_init(&q);
+	workq_init(&q, storage, MT_WORKQ_CAP);
 
 	for (size_t i = 0; i < 3; i++) {
 		workq_thread_init(&wqts[i], &q, thread_stacks[i], STACK_SIZE, NULL);
@@ -68,8 +71,9 @@ ZTEST(multi_thread, test_close_one)
 {
 	struct workq q;
 	struct container *c;
+	struct work_item *storage[MT_WORKQ_CAP];
 
-	workq_init(&q);
+	workq_init(&q, storage, MT_WORKQ_CAP);
 
 	for (size_t i = 0; i < 10; i++) {
 		c = k_malloc(sizeof(struct container));

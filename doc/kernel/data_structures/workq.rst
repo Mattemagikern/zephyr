@@ -1,8 +1,20 @@
 Work Queue (workq)
 ##################
 
-The workq module provides a lightweight, single-threaded work queue for deferring tasks from
-interrupt context or high-priority threads to a dedicated worker thread.
+The workq module provides a lightweight work queue for deferring tasks from
+interrupt context or high-priority threads to one or more dedicated worker
+threads.
+
+Pending and delayed work items share a single bounded min-heap ordered by
+execution time. The capacity of the heap is fixed at queue creation; submits
+beyond capacity return ``-ENOMEM``.
+
+Submission with :c:func:`workq_submit` queues an item for immediate execution
+(``exec_time = now``) while :c:func:`workq_delayed_submit` queues it with a
+deadline ``now + delay``. Either way the item is placed in the same heap and
+is dispatched as soon as a worker becomes available and the deadline has
+elapsed. Workers sleep until the earliest deadline rather than relying on a
+shared kernel timeout.
 
 
 
@@ -43,29 +55,22 @@ State Machines
 
      note right of OPEN_RUNNING
          Accepting new work.
-         Processing pending/delayed items.
+         Processing items from the heap.
      end note
 
      note right of OPEN_FROZEN
-         Accepting new work.
-         pending items will be processed but delayed items will not be scheduled until thawed.
+         Rejecting new work (-EAGAIN).
+         No items execute until thawed.
      end note
    }
 
    state CLOSED {
      [*] --> CLOSED_RUNNING : [!frozen]
-     [*] --> CLOSED_FROZEN : [frozen]
-     CLOSED_RUNNING --> CLOSED_FROZEN : workq_freeze()
-     CLOSED_FROZEN --> CLOSED_RUNNING : workq_thaw()
+     CLOSED_RUNNING --> OPEN_FROZEN : workq_freeze()
 
      note right of CLOSED_RUNNING
          Rejecting new work (-EAGAIN).
-         Processing pending/delayed items.
-     end note
-
-     note right of CLOSED_FROZEN
-         Rejecting new work (-EBUSY).
-         pending items will be processed but delayed items will not be scheduled until thawed.
+         Processing items already in the heap.
      end note
    }
 

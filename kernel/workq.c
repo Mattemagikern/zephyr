@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include <zephyr/workq.h>
+#include <zephyr/sys/min_heap.h>
 #include <ksched.h>
 #include <kthread.h>
 #include <wait_q.h>
@@ -11,7 +12,6 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(workq, LOG_LEVEL_DBG);
 
-/* private struct, only used locally */
 struct active_work {
 	uintptr_t work;
 	sys_snode_t node;
@@ -24,46 +24,40 @@ static struct workq_thread_config default_cfg = {
 	.prio = CONFIG_WORKQ_DEFAULT_THREAD_PRIORITY,
 };
 
-/* should only be called with lock held */
+int workq_cmp(const void *a, const void *b)
+{
+	const struct work_item *wa = *(struct work_item *const *)a;
+	const struct work_item *wb = *(struct work_item *const *)b;
+
+	return sys_timepoint_cmp(wa->exec_time, wb->exec_time);
+}
+
+static bool work_eq(const void *node, const void *other)
+{
+	return *(struct work_item *const *)node == (const struct work_item *)other;
+}
+
 static inline bool workq_closed(struct workq *wq)
 {
 	return (wq->flags & WORKQ_FLAG_OPEN) == 0;
 }
 
-/* should only be called with lock held */
+static inline bool workq_frozen(struct workq *wq)
+{
+	return (wq->flags & WORKQ_FLAG_FROZEN) != 0;
+}
+
 static inline bool workq_idle(struct workq *wq)
 {
-	return sys_slist_is_empty(&wq->pending) && sys_slist_is_empty(&wq->delayed) &&
-		sys_slist_is_empty(&wq->active);
+	return min_heap_is_empty(&wq->heap) && sys_slist_is_empty(&wq->active);
 }
 
-/* should only be called with lock held */
-static inline bool pending(struct workq *wq, struct work_item *item)
-{
-	struct work_item *wi;
-
-	SYS_SLIST_FOR_EACH_CONTAINER(&wq->pending, wi, node) {
-		if (wi == item) {
-			return true;
-		}
-	}
-
-	SYS_SLIST_FOR_EACH_CONTAINER(&wq->delayed, wi, node) {
-		if (wi == item) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-/* should only be called with lock held */
 static inline bool active(struct workq *wq, struct work_item *work)
 {
-	struct active_work *active;
+	struct active_work *a;
 
-	SYS_SLIST_FOR_EACH_CONTAINER(&wq->active, active, node) {
-		if (active->work == (uintptr_t)work) {
+	SYS_SLIST_FOR_EACH_CONTAINER(&wq->active, a, node) {
+		if (a->work == (uintptr_t)work) {
 			return true;
 		}
 	}
@@ -71,118 +65,42 @@ static inline bool active(struct workq *wq, struct work_item *work)
 	return false;
 }
 
-/* should only be called with lock held */
-static inline struct work_item *get_next_work(struct workq *wq)
+static inline struct work_item *heap_peek(struct workq *wq)
 {
-	sys_snode_t *node = sys_slist_get(&wq->pending);
+	struct work_item **slot = min_heap_peek(&wq->heap);
 
-	if (node == NULL) {
-		return NULL;
-	}
-
-	return CONTAINER_OF(node, struct work_item, node);
+	return slot ? *slot : NULL;
 }
 
-/* should only be called with lock held */
 static inline void awake(struct workq *wq)
 {
 	z_sched_wake(&wq->idle, 0, NULL);
 }
 
-static void schedule_cb(struct _timeout *t);
-/* should only be called with lock held */
-static void schedule_next_timeout(struct workq *wq)
+static inline int heap_push(struct workq *wq, struct work_item *item)
 {
-	struct work_item *item;
-
-	if (sys_slist_is_empty(&wq->delayed)) {
-		return;
-	}
-
-	item = CONTAINER_OF(sys_slist_peek_head(&wq->delayed), struct work_item, node);
-	z_add_timeout(&wq->timeout, schedule_cb, sys_timepoint_timeout(item->exec_time));
+	return min_heap_push(&wq->heap, &item);
 }
 
-/* should only be called with lock held */
-static inline int cancel(struct workq *wq, struct work_item *item)
+static inline bool heap_remove_item(struct workq *wq, struct work_item *item)
 {
-	if (active(wq, item)) {
-		/* cannot cancel running item */
-		return -EBUSY;
-	}
+	size_t id;
+	struct work_item *out;
 
-	if (sys_slist_peek_head(&wq->delayed) == &item->node) {
-		z_abort_timeout(&wq->timeout);
-		sys_slist_find_and_remove(&wq->delayed, &item->node);
-		schedule_next_timeout(wq);
-	} else {
-		sys_slist_find_and_remove(&wq->delayed, &item->node);
-		sys_slist_find_and_remove(&wq->pending, &item->node);
+	if (min_heap_find(&wq->heap, work_eq, item, &id) == NULL) {
+		return false;
 	}
-
-	return 0;
+	return min_heap_remove(&wq->heap, id, &out);
 }
 
-/* should only be called with lock held */
-static inline void delayed_submit(struct workq *wq, struct work_item *item, k_timepoint_t exec_time)
+static inline bool heap_contains(struct workq *wq, struct work_item *item)
 {
-	struct work_item *next;
-	sys_snode_t *node, *prev = NULL;
-
-	item->exec_time = exec_time;
-	SYS_SLIST_FOR_EACH_NODE(&wq->delayed, node) {
-		next = CONTAINER_OF(node, struct work_item, node);
-		if (sys_timepoint_cmp(item->exec_time, next->exec_time) < 0) {
-			sys_slist_insert(&wq->delayed, prev, &item->node);
-			break;
-		}
-		prev = node;
-	}
-
-	if (node == NULL) {
-		sys_slist_append(&wq->delayed, &item->node);
-	}
-
-	if (sys_slist_peek_head(&wq->delayed) == &item->node) {
-		z_abort_timeout(&wq->timeout);
-		schedule_next_timeout(wq);
-	}
+	return min_heap_find(&wq->heap, work_eq, item, NULL) != NULL;
 }
 
-
-static inline bool thread_running(struct workq_thread *wqt)
+static inline int sleep_locked(struct workq *wq, k_spinlock_key_t *key, k_timeout_t timeout)
 {
-	bool running;
-
-	K_SPINLOCK(&wqt->lock) {
-		running = (wqt->flags & WORKQ_THREAD_FLAG_RUNNING) != 0;
-	}
-
-	return running;
-}
-
-static void schedule_cb(struct _timeout *t)
-{
-	struct workq *wq = CONTAINER_OF(t, struct workq, timeout);
-	struct work_item *item;
-
-	K_SPINLOCK(&wq->lock) {
-		while (!sys_slist_is_empty(&wq->delayed)) {
-			item = CONTAINER_OF(sys_slist_peek_head(&wq->delayed), struct work_item, node);
-			if (!sys_timepoint_expired(item->exec_time)) {
-				break;
-			}
-			sys_slist_get(&wq->delayed);
-			sys_slist_append(&wq->pending, &item->node);
-		}
-		schedule_next_timeout(wq);
-		awake(wq);
-	}
-}
-
-static inline int sleep(struct workq *wq, k_spinlock_key_t *key, k_timeout_t timeout)
-{
-	int rc = 0;
+	int rc;
 
 	rc = z_pend_curr(&wq->lock, *key, &wq->idle, timeout);
 	*key = k_spin_lock(&wq->lock);
@@ -190,34 +108,59 @@ static inline int sleep(struct workq *wq, k_spinlock_key_t *key, k_timeout_t tim
 	return rc;
 }
 
+static inline k_timepoint_t earlier(k_timepoint_t a, k_timepoint_t b)
+{
+	return sys_timepoint_cmp(a, b) <= 0 ? a : b;
+}
+
 int workq_run(struct workq *wq, k_timeout_t timeout)
 {
 	int rc;
 	work_fn_t fn;
-	struct work_item *work;
-	struct active_work active;
+	struct work_item *work = NULL;
+	struct active_work act;
+	k_timepoint_t deadline = sys_timepoint_calc(timeout);
 	k_spinlock_key_t key = k_spin_lock(&wq->lock);
 
-	while ((work = get_next_work(wq)) == NULL) {
-		rc = sleep(wq, &key, timeout);
-		if (rc != 0) {
+	for (;;) {
+		struct work_item *head;
+		k_timepoint_t target;
+		k_timeout_t sleep_to;
+
+		head = workq_frozen(wq) ? NULL : heap_peek(wq);
+		if (head != NULL && sys_timepoint_expired(head->exec_time)) {
+			struct work_item *popped;
+
+			(void)min_heap_pop(&wq->heap, &popped);
+			work = popped;
+			break;
+		}
+
+		if (sys_timepoint_expired(deadline)) {
+			k_spin_unlock(&wq->lock, key);
+			return -EAGAIN;
+		}
+
+		target = (head != NULL) ? earlier(deadline, head->exec_time) : deadline;
+		sleep_to = sys_timepoint_timeout(target);
+
+		rc = sleep_locked(wq, &key, sleep_to);
+		if (rc != 0 && rc != -EAGAIN) {
 			k_spin_unlock(&wq->lock, key);
 			return rc;
-		} else if (workq_idle(wq)) {
-			z_sched_wake_all(&wq->drain, 0, NULL);
 		}
 	}
 
 	fn = work->fn;
-	active.work = (uintptr_t)work;
-	sys_slist_append(&wq->active, &active.node);
+	act.work = (uintptr_t)work;
+	sys_slist_append(&wq->active, &act.node);
 	k_spin_unlock(&wq->lock, key);
 
 	__ASSERT(fn != NULL, "Work item has not been initialized properly");
 	fn(work); /* "work" should be freeable during this function call */
 
 	K_SPINLOCK(&wq->lock) {
-		sys_slist_find_and_remove(&wq->active, &active.node);
+		sys_slist_find_and_remove(&wq->active, &act.node);
 		if (workq_idle(wq)) {
 			z_sched_wake_all(&wq->drain, 0, NULL);
 		}
@@ -226,13 +169,12 @@ int workq_run(struct workq *wq, k_timeout_t timeout)
 	return 0;
 }
 
-void workq_init(struct workq *wq)
+void workq_init(struct workq *wq, struct work_item **storage, size_t cap)
 {
+	wq->flags = 0;
 	wq->lock = (struct k_spinlock){};
+	min_heap_init(&wq->heap, storage, cap, sizeof(struct work_item *), workq_cmp);
 	sys_slist_init(&wq->active);
-	sys_slist_init(&wq->pending);
-	sys_slist_init(&wq->delayed);
-	z_init_timeout(&wq->timeout);
 	z_waitq_init(&wq->idle);
 	z_waitq_init(&wq->drain);
 	workq_open(wq);
@@ -258,7 +200,7 @@ void workq_freeze(struct workq *wq)
 	K_SPINLOCK(&wq->lock) {
 		wq->flags &= ~WORKQ_FLAG_OPEN;
 		wq->flags |= WORKQ_FLAG_FROZEN;
-		z_abort_timeout(&wq->timeout);
+		z_sched_wake_all(&wq->idle, 0, NULL);
 	}
 }
 
@@ -269,7 +211,8 @@ void workq_thaw(struct workq *wq)
 			K_SPINLOCK_BREAK;
 		}
 		wq->flags &= ~WORKQ_FLAG_FROZEN;
-		schedule_next_timeout(wq);
+		wq->flags |= WORKQ_FLAG_OPEN;
+		z_sched_wake_all(&wq->idle, 0, NULL);
 	}
 }
 
@@ -287,11 +230,15 @@ int workq_submit(struct workq *wq, struct work_item *item)
 			rc = -EAGAIN;
 			K_SPINLOCK_BREAK;
 		}
-		if (pending(wq, item)) {
+		if (heap_contains(wq, item)) {
 			rc = -EALREADY;
 			K_SPINLOCK_BREAK;
 		}
-		sys_slist_append(&wq->pending, &item->node);
+		item->exec_time = sys_timepoint_calc(K_NO_WAIT);
+		if (heap_push(wq, item) != 0) {
+			rc = -ENOMEM;
+			K_SPINLOCK_BREAK;
+		}
 		awake(wq);
 	}
 
@@ -301,18 +248,22 @@ int workq_submit(struct workq *wq, struct work_item *item)
 int workq_delayed_submit(struct workq *wq, struct work_item *item, k_timeout_t delay)
 {
 	int rc = 0;
-	k_timepoint_t exec_time = sys_timepoint_calc(delay);
 
 	K_SPINLOCK(&wq->lock) {
 		if (workq_closed(wq)) {
 			rc = -EBUSY;
 			K_SPINLOCK_BREAK;
 		}
-		if (pending(wq, item)) {
+		if (heap_contains(wq, item)) {
 			rc = -EALREADY;
 			K_SPINLOCK_BREAK;
 		}
-		delayed_submit(wq, item, exec_time);
+		item->exec_time = sys_timepoint_calc(delay);
+		if (heap_push(wq, item) != 0) {
+			rc = -ENOMEM;
+			K_SPINLOCK_BREAK;
+		}
+		awake(wq);
 	}
 
 	return rc;
@@ -321,16 +272,19 @@ int workq_delayed_submit(struct workq *wq, struct work_item *item, k_timeout_t d
 int workq_reschedule(struct workq *wq, struct work_item *item, k_timeout_t delay)
 {
 	int rc = 0;
-	k_timepoint_t exec_time = sys_timepoint_calc(delay);
 
 	K_SPINLOCK(&wq->lock) {
-		if (pending(wq, item)) {
-			rc = cancel(wq, item);
-			if (rc != 0) {
-				K_SPINLOCK_BREAK;
-			}
+		if (active(wq, item)) {
+			rc = -EBUSY;
+			K_SPINLOCK_BREAK;
 		}
-		delayed_submit(wq, item, exec_time);
+		(void)heap_remove_item(wq, item);
+		item->exec_time = sys_timepoint_calc(delay);
+		if (heap_push(wq, item) != 0) {
+			rc = -ENOMEM;
+			K_SPINLOCK_BREAK;
+		}
+		awake(wq);
 	}
 
 	return rc;
@@ -338,17 +292,18 @@ int workq_reschedule(struct workq *wq, struct work_item *item, k_timeout_t delay
 
 int workq_cancel(struct workq *wq, struct work_item *item)
 {
-	int rc;
+	int rc = 0;
 
 	K_SPINLOCK(&wq->lock) {
 		if (active(wq, item)) {
 			rc = -EBUSY;
 			K_SPINLOCK_BREAK;
-		} else if (!pending(wq, item)) {
+		}
+		if (!heap_remove_item(wq, item)) {
 			rc = -ENOENT;
 			K_SPINLOCK_BREAK;
 		}
-		rc = cancel(wq, item);
+		awake(wq);
 	}
 
 	return rc;
@@ -366,6 +321,17 @@ int workq_drain(struct workq *wq, k_timeout_t timeout)
 	return z_pend_curr(&wq->lock, key, &wq->drain, timeout);
 }
 
+static inline bool thread_running(struct workq_thread *wqt)
+{
+	bool running;
+
+	K_SPINLOCK(&wqt->lock) {
+		running = (wqt->flags & WORKQ_THREAD_FLAG_RUNNING) != 0;
+	}
+
+	return running;
+}
+
 void workq_thread_fn(void *arg1, void *arg2, void *arg3)
 {
 	int rc;
@@ -374,7 +340,7 @@ void workq_thread_fn(void *arg1, void *arg2, void *arg3)
 	LOG_DBG("[%p] Workq thread entered", &wqt->thread);
 	while (thread_running(wqt)) {
 		rc = workq_run(wqt->wq, K_FOREVER);
-		if (unlikely(rc != 0)) {
+		if (unlikely(rc != 0 && rc != -EAGAIN)) {
 			break;
 		}
 	}

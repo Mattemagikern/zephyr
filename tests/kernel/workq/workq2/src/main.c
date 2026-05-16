@@ -10,7 +10,10 @@
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(workq_tests, LOG_LEVEL_DBG);
-WORKQ_DEFINE(test_define_workq);
+
+#define TEST_WORKQ_CAP 8
+
+WORKQ_DEFINE(test_define_workq, TEST_WORKQ_CAP);
 WORKQ_THREAD_DEFINE(test_define_wqt, test_define_workq, 1024, 0);
 
 struct container {
@@ -48,6 +51,7 @@ ZTEST(basic, test_setup)
 	struct k_work_q oq;
 	struct workq q;
 	struct workq_thread wqt;
+	struct work_item *storage[TEST_WORKQ_CAP];
 
 	LOG_INF("----------------------------");
 	LOG_INF("sizeof k_work %d", sizeof(struct k_work));
@@ -60,10 +64,8 @@ ZTEST(basic, test_setup)
 	LOG_INF("----------------------------");
 	LOG_INF("sizeof workq.flags %d", sizeof(q.flags));
 	LOG_INF("sizeof workq.lock %d", sizeof(q.lock));
-	LOG_INF("sizeof workq.timeout %d", sizeof(q.timeout));
+	LOG_INF("sizeof workq.heap %d", sizeof(q.heap));
 	LOG_INF("sizeof workq.active %d", sizeof(q.active));
-	LOG_INF("sizeof workq.pending %d", sizeof(q.pending));
-	LOG_INF("sizeof workq.delayed %d", sizeof(q.delayed));
 	LOG_INF("sizeof workq.idle %d", sizeof(q.idle));
 	LOG_INF("sizeof workq.drain %d", sizeof(q.drain));
 	LOG_INF("----------------------------");
@@ -85,7 +87,7 @@ ZTEST(basic, test_setup)
 
 
 
-	workq_init(&q);
+	workq_init(&q, storage, TEST_WORKQ_CAP);
 	zassert_true(workq_run(&q, K_NO_WAIT) == -EAGAIN,
 			"workq have no work, should return -EAGAIN");
 }
@@ -95,9 +97,10 @@ ZTEST(basic, test_submit)
 	struct workq q;
 	struct k_sem sem;
 	struct container *c;
+	struct work_item *storage[TEST_WORKQ_CAP];
 
 	k_sem_init(&sem, 0, 3);
-	workq_init(&q);
+	workq_init(&q, storage, TEST_WORKQ_CAP);
 
 	for (size_t i = 0; i < 3; i++) {
 		c = k_malloc(sizeof(struct container));
@@ -120,8 +123,9 @@ ZTEST(basic, test_submit_delayed)
 	struct workq q;
 	struct k_sem sem;
 	struct container *c;
+	struct work_item *storage[TEST_WORKQ_CAP];
 
-	workq_init(&q);
+	workq_init(&q, storage, TEST_WORKQ_CAP);
 	k_sem_init(&sem, 0, 3);
 
 	for (size_t i = 0; i < 3; i++) {
@@ -148,8 +152,9 @@ ZTEST(basic, test_cancel)
 	struct workq q;
 	struct k_sem sem;
 	struct container *c;
+	struct work_item *storage[TEST_WORKQ_CAP];
 
-	workq_init(&q);
+	workq_init(&q, storage, TEST_WORKQ_CAP);
 	k_sem_init(&sem, 0, 1);
 
 	c = k_malloc(sizeof(struct container));
@@ -161,6 +166,7 @@ ZTEST(basic, test_cancel)
 	zassert_ok(workq_cancel(&q, &c->item), "workq_cancel failed");
 	zassert_true(workq_run(&q, K_MSEC(100)) == -EAGAIN, "workq_run should timeout");
 	zassert_not_ok(k_sem_take(&sem, K_NO_WAIT), "work_fn called?");
+	k_free(c);
 }
 
 static void work_fn_nonfree(struct work_item *item)
@@ -175,8 +181,9 @@ ZTEST(basic, test_drain)
 	struct workq q;
 	struct work_item item;
 	struct work_item item2;
+	struct work_item *storage[TEST_WORKQ_CAP];
 
-	workq_init(&q);
+	workq_init(&q, storage, TEST_WORKQ_CAP);
 	work_init(&item, work_fn_nonfree);
 	work_init(&item2, work_fn_nonfree);
 	workq_thread_init(&wqt, &q, stack, K_THREAD_STACK_SIZEOF(stack), NULL);
@@ -194,8 +201,9 @@ ZTEST(basic, test_reschedule)
 	struct workq_thread wqt;
 	struct work_item item;
 	struct workq q;
+	struct work_item *storage[TEST_WORKQ_CAP];
 
-	workq_init(&q);
+	workq_init(&q, storage, TEST_WORKQ_CAP);
 	work_init(&item, work_fn_nonfree);
 	workq_thread_init(&wqt, &q, stack, K_THREAD_STACK_SIZEOF(stack), NULL);
 
@@ -212,6 +220,7 @@ ZTEST(basic, test_open_close)
 	struct workq q;
 	struct k_sem sem;
 	struct container *c;
+	struct work_item *storage[TEST_WORKQ_CAP];
 
 	k_sem_init(&sem, 0, 1);
 	c = k_malloc(sizeof(struct container));
@@ -219,7 +228,7 @@ ZTEST(basic, test_open_close)
 	c->sem = &sem;
 	work_init(&c->item, work_fn);
 
-	workq_init(&q);
+	workq_init(&q, storage, TEST_WORKQ_CAP);
 
 	workq_close(&q);
 	zassert_true(-EAGAIN == workq_submit(&q, &c->item), "workq_submit should fail when closed");
@@ -233,8 +242,9 @@ ZTEST(basic, test_open_close)
 ZTEST(basic, test_freeze_thaw)
 {
 	struct workq q;
-	struct k_sem sem, sem2;
-	struct container *c, *c2;
+	struct k_sem sem;
+	struct container *c;
+	struct work_item *storage[TEST_WORKQ_CAP];
 
 	k_sem_init(&sem, 0, 1);
 	c = k_malloc(sizeof(struct container));
@@ -242,28 +252,21 @@ ZTEST(basic, test_freeze_thaw)
 	c->sem = &sem;
 	work_init(&c->item, work_fn);
 
-	workq_init(&q);
+	workq_init(&q, storage, TEST_WORKQ_CAP);
 	zassert_ok(workq_delayed_submit(&q, &c->item, K_MSEC(50)), "workq_submit failed");
 	workq_freeze(&q);
 
-	/* Sleep a bit to make sure the work would(c) have been executed if it wasn't frozen */
-	k_msleep(100);
-	workq_open(&q);
-	/* Sleep a bit more to make sure the work(c) would have been executed if it wasn't frozen */
-	k_msleep(100);
+	/* Frozen: queue is closed and no work executes */
+	zassert_true(workq_submit(&q, &c->item) == -EAGAIN,
+			"workq_submit should fail when frozen");
+	zassert_true(workq_run(&q, K_MSEC(100)) == -EAGAIN,
+			"workq_run should not execute work when frozen");
+	zassert_not_ok(k_sem_take(&sem, K_NO_WAIT), "work_fn should not have been called");
 
-	c2 = k_malloc(sizeof(struct container));
-	k_sem_init(&sem2, 0, 1);
-	c2->sem = &sem2;
-	work_init(&c2->item, work_fn);
-	zassert_not_null(c2, "Failed to allocate memory for container");
-	zassert_ok(workq_submit(&q, &c2->item), "workq_submit failed");
-	zassert_ok(workq_run(&q, K_MSEC(100)), "workq_run should have successfully run the work");
-	zassert_ok(k_sem_take(&sem2, K_NO_WAIT), "work_fn not called");
-	zassert_not_ok(k_sem_take(&sem, K_NO_WAIT), "work_fn should not have been called for frozen work");
-	k_msleep(100);
-	zassert_true(workq_submit(&q, &c->item) == -EALREADY,
-			"work should already be submitted, since it hasn't been moved from delayed to pending");
+	/* The original delayed item is still parked in the heap */
+	zassert_true(workq_submit(&q, &c->item) == -EAGAIN,
+			"workq_submit should still fail when frozen");
+
 	workq_thaw(&q);
 	zassert_ok(workq_run(&q, K_MSEC(10)), "workq_run should have successfully run the work");
 	zassert_ok(k_sem_take(&sem, K_NO_WAIT), "work_fn not called");
