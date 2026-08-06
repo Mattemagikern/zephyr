@@ -528,6 +528,26 @@ config NO_OPTIMIZATIONS
 	  default stack sizes in order to avoid stack overflows.
 endchoice
 
+choice BUILD_TYPE
+	prompt "Build type"
+	default BUILD_TYPE_DEBUG
+	help
+	  Select the overall build type. This is a high-level switch that
+	  other options can key off to distinguish a development/debug build
+	  from a production/release build.
+
+config BUILD_TYPE_DEBUG
+	bool "Debug build"
+	help
+	  Select this for a development build intended for debugging.
+
+config BUILD_TYPE_RELEASE
+	bool "Release build"
+	help
+	  Select this for a production build intended for release.
+
+endchoice
+
 config LTO
 	bool "Link Time Optimization"
 	depends on !(GEN_ISR_TABLES || GEN_IRQ_VECTOR_TABLE) || ISR_TABLES_LOCAL_DECLARATION
