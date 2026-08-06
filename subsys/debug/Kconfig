@@ -151,7 +151,7 @@ config STACK_SENTINEL
 
 config PRINTK
 	bool "Send printk() to console"
-	default y
+	default y if BUILD_TYPE_DEBUG
 	help
 	  This option directs printk() debugging output to the supported
 	  console device, rather than suppressing the generation
@@ -170,7 +170,7 @@ config PRINTK_BUFFER_SIZE
 
 config EARLY_CONSOLE
 	bool "Send stdout at the earliest stage possible"
-	default y
+	default y if BUILD_TYPE_DEBUG
 	depends on !SERIAL_HAS_POST_KERNEL_INIT
 	help
 	  This option will enable stdout as early as possible, for debugging
@@ -181,6 +181,7 @@ config EARLY_CONSOLE
 config ASSERT
 	bool "__ASSERT() macro"
 	default y if TEST
+	default y if BUILD_TYPE_DEBUG
 	help
 	  This enables the __ASSERT() macro in the kernel code. If an assertion
 	  fails, the policy for what to do is controlled by the implementation
@@ -325,7 +326,7 @@ config OMIT_FRAME_POINTER
 #
 config EXCEPTION_STACK_TRACE
 	bool "Attempt to print stack traces upon exceptions"
-	default y
+	default y if BUILD_TYPE_DEBUG
 	depends on ARCH_STACKWALK
 	help
 	  If the architecture fatal handling code supports it, attempt to
@@ -337,6 +338,7 @@ config EXCEPTION_STACK_TRACE
 #
 config DEBUG_THREAD_INFO
 	bool "Thread awareness support"
+	default y if BUILD_TYPE_DEBUG
 	depends on !SMP
 	select THREAD_MONITOR
 	select THREAD_NAME

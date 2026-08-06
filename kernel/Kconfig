@@ -157,6 +157,7 @@ config ISR_STACK_SIZE
 
 config THREAD_STACK_INFO
 	bool "Thread stack info"
+	default y if BUILD_TYPE_DEBUG
 	help
 	  This option allows each thread to store the thread stack info into
 	  the k_thread data structure.
@@ -364,6 +365,7 @@ menu "Kernel Debugging and Metrics"
 
 config INIT_STACKS
 	bool "Initialize stack areas"
+	default y if BUILD_TYPE_DEBUG
 	help
 	  This option instructs the kernel to initialize stack areas with a
 	  known value (0xaa) before they are first used, so that the high
@@ -382,6 +384,7 @@ config SKIP_BSS_CLEAR
 
 config THREAD_MONITOR
 	bool "Thread monitoring"
+	default y if BUILD_TYPE_DEBUG
 	help
 	  This option instructs the kernel to maintain a list of all threads
 	  (excluding those that have not yet started or have already
@@ -389,6 +392,7 @@ config THREAD_MONITOR
 
 config THREAD_NAME
 	bool "Thread name"
+	default y if BUILD_TYPE_DEBUG
 	help
 	  This option allows to set a name for a thread.
 

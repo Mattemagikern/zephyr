@@ -5,6 +5,7 @@ menu "Logging"
 
 config LOG
 	bool "Logging"
+	default y if BUILD_TYPE_DEBUG
 	select PRINTK if USERSPACE
 	help
 	  Global switch for the logger, when turned off log calls will not be
