@@ -3871,6 +3871,7 @@ Kernel:
     - include/zephyr/spinlock.h
     - include/zephyr/fatal.h
     - kernel/
+    - include/zephyr/call_offloader/engine.h
     - tests/kernel/
     - include/zephyr/sys_clock.h
     - samples/kernel/
