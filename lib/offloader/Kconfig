@@ -17,4 +17,15 @@ config OFFLOADER_PSA
 	  Allowing the psa caller(s) to use a much smaller stack, at the cost
 	  of a context switch and a shared dedicated worker thread.
 
+if OFFLOADER_PSA
+
+config OFFLOADER_PSA_STACK_SIZE
+	int "PSA offloader engine stack size"
+	default 3072
+	help
+	  Stack size of each PSA offloader engine thread, in bytes. It must
+	  accommodate the deepest offloaded PSA call.
+
+endif # OFFLOADER_PSA
+
 endif # OFFLOADER
