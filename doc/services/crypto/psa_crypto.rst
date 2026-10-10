@@ -167,6 +167,33 @@ Cleaning up after use
 
   * Destroying keys that are no longer used.
 
+
+RAM size optimization
+*********************
+
+The PSA Crypto API is, in relative terms, a stack-hungry API. This is not specific to PSA Crypto,
+but rather a general property of cryptographic libraries. On constrained devices this poses a
+challenge: every thread that calls a cryptographic function must size its own stack for the
+deepest call it makes, so the cost is paid once per thread rather than once per system.
+
+To mitigate this, Zephyr provides a call offloader.
+:kconfig:option:`CONFIG_OFFLOADER_PSA` enables a system-wide offloader thread that executes the
+calls on the caller's behalf. The offloader thread needs a stack large enough for the cryptographic
+operations and the callers keep a small one.
+The trade-off is a small latency penalty and the fact that the offloaded calls are serialized
+system-wide.
+
+Enabling the offloader is a build configuration change plus one include swap:
+
+.. code-block:: kconfig
+
+   CONFIG_OFFLOADER_PSA=y
+   CONFIG_OFFLOADER_PSA_STACK_SIZE=3072
+
+
+The call site itself is unchanged, but the linker redirects the calls to be executed on the
+offloader thread. However this approach disallows PSA calls from being made from an ISR.
+
 References
 **********
 
