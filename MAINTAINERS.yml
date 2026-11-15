@@ -1863,6 +1863,8 @@ Documentation Infrastructure:
     - drivers/crypto/
     - dts/bindings/crypto/
     - include/zephyr/crypto/
+    - include/zephyr/call_offloader/services/psa.h
+    - lib/call_offloader/
     - samples/drivers/crypto/
     - tests/crypto/
     - doc/services/crypto/
