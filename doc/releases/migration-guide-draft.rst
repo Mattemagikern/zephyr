@@ -655,6 +655,17 @@ OpenThread
 Other subsystems
 ****************
 
+Debug
+=====
+
+* Modules generated from :zephyr_file:`subsys/debug/zassert/Kconfig.template.assert` and the
+  ``DEFAULT`` assert module now default to the system-wide ``CONFIG_ASSERT_DEFAULT_LEVEL_*``
+  level instead of ``Verbose``. The deprecated :kconfig:option:`CONFIG_ASSERT_VERBOSE`,
+  :kconfig:option:`CONFIG_ASSERT_NO_COND_INFO`, :kconfig:option:`CONFIG_ASSERT_NO_MSG_INFO`,
+  :kconfig:option:`CONFIG_ASSERT_NO_FILE_INFO` and :kconfig:option:`CONFIG_ASSERT_LEVEL` options
+  now set this system-wide level, so they also apply to every module that does not set its own
+  level. Use ``CONFIG_ASSERT_DEFAULT_LEVEL_*`` instead of these options.
+
 Shell
 =====
 
