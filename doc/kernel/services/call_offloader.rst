@@ -51,7 +51,7 @@ slots using :c:macro:`CALL_OFFLOADER_ENGINE_DEFINE`.
 
 .. code-block:: c
 
-   #include <zephyr/call_offloader/engine.h>
+   #include <zephyr/call_offloader/call_offloader.h>
 
    CALL_OFFLOADER_ENGINE_DEFINE(my_engine, 1, 3072);
 
@@ -177,7 +177,7 @@ on one of its threads.
 
 .. code-block:: c
 
-   #include <zephyr/call_offloader/engine.h>
+   #include <zephyr/call_offloader/call_offloader.h>
 
    CALL_OFFLOADER_ENGINE_DEFINE(my_engine, 1, 3072);
 

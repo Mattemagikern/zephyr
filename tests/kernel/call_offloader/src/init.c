@@ -5,7 +5,7 @@
 #include <zephyr/ztest.h>
 #include <zephyr/init.h>
 #include <zephyr/kernel.h>
-#include <zephyr/call_offloader/engine.h>
+#include <zephyr/call_offloader/call_offloader.h>
 
 CALL_OFFLOADER_ENGINE_DEFINE(init_eng, 1, 1024);
 

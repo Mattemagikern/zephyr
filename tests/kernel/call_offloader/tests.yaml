@@ -12,6 +12,13 @@ tests:
     tags:
       - ignore_fault
     extra_args: EXTRA_CONF_FILE="fault.conf"
+  kernel.call_offloader.userspace:
+    filter: CONFIG_ARCH_HAS_USERSPACE
+    ignore_faults: true
+    tags:
+      - ignore_fault
+      - userspace
+    extra_args: EXTRA_CONF_FILE="userspace.conf"
   kernel.call_offloader.benchmark:
     timeout: 60
     tags:

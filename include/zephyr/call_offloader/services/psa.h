@@ -4,7 +4,7 @@
  */
 /**
  * @file
- * @brief PSA Crypto call offloading (see <zephyr/call_offloader/engine.h>).
+ * @brief PSA Crypto call offloading (see <zephyr/call_offloader/call_offloader.h>).
  */
 #ifndef ZEPHYR_INCLUDE_CALL_OFFLOADER_SERVICES_PSA_H_
 #define ZEPHYR_INCLUDE_CALL_OFFLOADER_SERVICES_PSA_H_

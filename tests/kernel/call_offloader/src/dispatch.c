@@ -5,7 +5,7 @@
 
 #include <zephyr/ztest.h>
 #include <zephyr/kernel.h>
-#include <zephyr/call_offloader/engine.h>
+#include <zephyr/call_offloader/call_offloader.h>
 
 #define WORKER_STACK_SIZE 2048
 #define SAMPLES           1000U

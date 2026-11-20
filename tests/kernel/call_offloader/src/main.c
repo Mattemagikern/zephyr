@@ -4,7 +4,7 @@
  */
 #include <zephyr/ztest.h>
 #include <zephyr/kernel.h>
-#include <zephyr/call_offloader/engine.h>
+#include <zephyr/call_offloader/call_offloader.h>
 
 #define PRIO_HIGH K_PRIO_COOP(2)
 #define PRIO_MID  K_PRIO_PREEMPT(0)

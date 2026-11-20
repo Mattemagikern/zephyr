@@ -7,6 +7,8 @@ project(call_offloader_engine)
 
 if(CONFIG_ZTEST_BENCHMARK)
   target_sources(app PRIVATE src/dispatch.c)
+elseif(CONFIG_USERSPACE)
+  target_sources(app PRIVATE src/main.c src/wrap.c src/init.c src/fault.c src/userspace.c)
 elseif(CONFIG_ZTEST_FATAL_HOOK)
   target_sources(app PRIVATE src/fault.c)
 else()

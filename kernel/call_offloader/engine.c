@@ -4,7 +4,8 @@
  */
 #include <zephyr/kernel.h>
 #include <zephyr/sys/zassert.h>
-#include <zephyr/call_offloader/engine.h>
+#include <zephyr/call_offloader/call_offloader.h>
+#include <zephyr/internal/syscall_handler.h>
 
 #include <ksched.h>
 #include <kswap.h>
@@ -136,6 +137,14 @@ static void release_slot(struct call_offloader_engine *engine, struct call_offlo
 	}
 }
 
+static FUNC_NORETURN void finish(struct call_offloader_engine *engine,
+				 struct call_offloader_slot *slot)
+{
+	release_slot(engine, slot, true);
+	k_thread_abort(_current);
+	CODE_UNREACHABLE;
+}
+
 static void slot_entry(void *p1, void *p2, void *p3)
 {
 	struct call_offloader_engine *engine = p1;
@@ -144,8 +153,45 @@ static void slot_entry(void *p1, void *p2, void *p3)
 
 	req->fn(req->args);
 
-	release_slot(engine, slot, true);
+	finish(engine, slot);
 }
+
+static struct call_offloader_slot *find_current_slot(struct call_offloader_engine **engine)
+{
+	STRUCT_SECTION_FOREACH(call_offloader_engine, e) {
+		for (size_t i = 0; i < e->num_slots; i++) {
+			if (e->workers[i].thread == _current) {
+				*engine = e;
+				return &e->workers[i];
+			}
+		}
+	}
+
+	return NULL;
+}
+
+void z_impl_z_call_offloader_done(void)
+{
+	struct call_offloader_engine *engine = NULL;
+	struct call_offloader_slot *slot = find_current_slot(&engine);
+
+	ZASSERT(slot != NULL, "not an offloader thread");
+
+	finish(engine, slot);
+}
+
+#ifdef CONFIG_USERSPACE
+static inline void z_vrfy_z_call_offloader_done(void)
+{
+	struct call_offloader_engine *engine = NULL;
+	struct call_offloader_slot *slot = find_current_slot(&engine);
+
+	K_OOPS(K_SYSCALL_VERIFY_MSG(slot != NULL, "not an offloader thread"));
+
+	finish(engine, slot);
+}
+#include <zephyr/syscalls/z_call_offloader_done_mrsh.c>
+#endif /* CONFIG_USERSPACE */
 
 static int start_and_join(struct k_thread *thread)
 {

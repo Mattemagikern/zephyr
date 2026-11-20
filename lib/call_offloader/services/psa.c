@@ -4,7 +4,7 @@
  */
 #include <psa/crypto.h>
 #include <zephyr/kernel.h>
-#include <zephyr/call_offloader/engine.h>
+#include <zephyr/call_offloader/call_offloader.h>
 
 CALL_OFFLOADER_ENGINE_DEFINE(psa_engine, CONFIG_CALL_OFFLOADER_PSA_WORKERS,
 			     CONFIG_CALL_OFFLOADER_PSA_STACK_SIZE);

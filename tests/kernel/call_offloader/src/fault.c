@@ -5,7 +5,7 @@
 #include <zephyr/ztest.h>
 #include <zephyr/ztest_error_hook.h>
 #include <zephyr/kernel.h>
-#include <zephyr/call_offloader/engine.h>
+#include <zephyr/call_offloader/call_offloader.h>
 
 #define WORKER_STACK_SZ 1024
 #define CALLER_STACK_SZ 1024

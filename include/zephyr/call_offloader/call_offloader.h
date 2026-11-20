@@ -12,8 +12,8 @@
  * thread has finished, so the stack depth of the call is paid once per slot instead of once by
  * every calling thread.
  */
-#ifndef ZEPHYR_INCLUDE_CALL_OFFLOADER_ENGINE_H_
-#define ZEPHYR_INCLUDE_CALL_OFFLOADER_ENGINE_H_
+#ifndef ZEPHYR_INCLUDE_CALL_OFFLOADER_CALL_OFFLOADER_H_
+#define ZEPHYR_INCLUDE_CALL_OFFLOADER_CALL_OFFLOADER_H_
 
 #include <zephyr/kernel.h>
 #include <zephyr/sys/slist.h>
@@ -79,6 +79,10 @@ void call_offloader_dispatch(struct call_offloader_engine *engine, call_offloade
 			     void *args);
 
 /** @cond INTERNAL_HIDDEN */
+__syscall void z_call_offloader_done(void);
+/** @endcond */
+
+/** @cond INTERNAL_HIDDEN */
 #define Z_CALL_OFFLOADER_DEAD_THREAD                                         \
 	{                                                                    \
 		.base.thread_state = _THREAD_DEAD,                           \
@@ -110,21 +114,21 @@ void call_offloader_dispatch(struct call_offloader_engine *engine, call_offloade
  *		     or a macro expanding to one, such as a Kconfig option.
  * @param _stack_size Stack size of each slot, in bytes.
  */
-#define CALL_OFFLOADER_ENGINE_DEFINE(_name, _num_slots, _stack_size)                      \
-	BUILD_ASSERT((_num_slots) > 0, "an offloading engine needs at least one slot");   \
-	LISTIFY(_num_slots, Z_CALL_OFFLOADER_SLOT_OBJECTS, (;), _name, _stack_size);      \
-	static struct call_offloader_slot _name##_workers[_num_slots] = {                 \
-		LISTIFY(_num_slots, Z_CALL_OFFLOADER_SLOT, (,), _name, _num_slots)        \
-	};                                                                                \
-	static struct call_offloader_engine _name = {                                     \
-		.wait_q = Z_WAIT_Q_INIT(&_name.wait_q),                                   \
-		.free = {                                                                 \
-			.head = &_name##_workers[0].node,                                 \
-			.tail = &_name##_workers[(_num_slots) - 1].node,                  \
-		},                                                                        \
-		.num_slots = _num_slots,                                                  \
-		.stack_size = K_THREAD_STACK_SIZEOF(_name##_stack_0),                     \
-		.workers = _name##_workers,                                               \
+#define CALL_OFFLOADER_ENGINE_DEFINE(_name, _num_slots, _stack_size)                    \
+	BUILD_ASSERT((_num_slots) > 0, "an offloading engine needs at least one slot"); \
+	LISTIFY(_num_slots, Z_CALL_OFFLOADER_SLOT_OBJECTS, (;), _name, _stack_size);    \
+	static struct call_offloader_slot _name##_workers[_num_slots] = {               \
+		LISTIFY(_num_slots, Z_CALL_OFFLOADER_SLOT, (,), _name, _num_slots)      \
+	};                                                                              \
+	static STRUCT_SECTION_ITERABLE(call_offloader_engine, _name) = {                \
+		.wait_q = Z_WAIT_Q_INIT(&_name.wait_q),                                 \
+		.free = {                                                               \
+			.head = &_name##_workers[0].node,                               \
+			.tail = &_name##_workers[(_num_slots) - 1].node,                \
+		},                                                                      \
+		.num_slots = _num_slots,                                                \
+		.stack_size = K_THREAD_STACK_SIZEOF(_name##_stack_0),                   \
+		.workers = _name##_workers,                                             \
 	}
 
 /** @cond INTERNAL_HIDDEN */
@@ -235,4 +239,7 @@ void call_offloader_dispatch(struct call_offloader_engine *engine, call_offloade
 #ifdef __cplusplus
 }
 #endif
-#endif /* ZEPHYR_INCLUDE_CALL_OFFLOADER_ENGINE_H_ */
+
+#include <zephyr/syscalls/call_offloader.h>
+
+#endif /* ZEPHYR_INCLUDE_CALL_OFFLOADER_CALL_OFFLOADER_H_ */

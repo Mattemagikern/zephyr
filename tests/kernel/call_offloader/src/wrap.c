@@ -4,7 +4,7 @@
  */
 #include <zephyr/ztest.h>
 #include <zephyr/kernel.h>
-#include <zephyr/call_offloader/engine.h>
+#include <zephyr/call_offloader/call_offloader.h>
 
 #define WRAP_WORKER_STACK_SZ 1024
 
