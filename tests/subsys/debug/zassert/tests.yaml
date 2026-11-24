@@ -13,28 +13,28 @@ tests:
   os.zassert.all_off:
     extra_configs:
       - CONFIG_ASSERT_MODULE_MYMODULE_LEVEL_OFF=y
-      - CONFIG_ASSERT_MODULE_DEFAULT_LEVEL_OFF=y
+      - CONFIG_ASSERT_MODULE_UNNAMED_LEVEL_OFF=y
   # Both groups at Terse (banner only).
   os.zassert.both_terse:
     extra_configs:
       - CONFIG_ASSERT_MODULE_MYMODULE_LEVEL_TERSE=y
-      - CONFIG_ASSERT_MODULE_DEFAULT_LEVEL_TERSE=y
-  # MYMODULE forced to Terse; DEFAULT stays at the system-wide Verbose default.
+      - CONFIG_ASSERT_MODULE_UNNAMED_LEVEL_TERSE=y
+  # MYMODULE forced to Terse; UNNAMED stays at the system-wide Verbose default.
   os.zassert.mymodule_terse:
     extra_configs:
       - CONFIG_ASSERT_MODULE_MYMODULE_LEVEL_TERSE=y
-  # DEFAULT forced to Terse; MYMODULE stays at the system-wide Verbose default.
+  # UNNAMED forced to Terse; MYMODULE stays at the system-wide Verbose default.
   os.zassert.default_terse:
     extra_configs:
-      - CONFIG_ASSERT_MODULE_DEFAULT_LEVEL_TERSE=y
-  # MYMODULE raised to Verbose; DEFAULT stays at the system-wide Verbose default.
+      - CONFIG_ASSERT_MODULE_UNNAMED_LEVEL_TERSE=y
+  # MYMODULE raised to Verbose; UNNAMED stays at the system-wide Verbose default.
   os.zassert.mymodule_verbose:
     extra_configs:
       - CONFIG_ASSERT_MODULE_MYMODULE_LEVEL_VERBOSE=y
-  # DEFAULT raised to Verbose; MYMODULE stays at the system-wide Verbose default.
+  # UNNAMED raised to Verbose; MYMODULE stays at the system-wide Verbose default.
   os.zassert.default_verbose:
     extra_configs:
-      - CONFIG_ASSERT_MODULE_DEFAULT_LEVEL_VERBOSE=y
+      - CONFIG_ASSERT_MODULE_UNNAMED_LEVEL_VERBOSE=y
   # System-wide default Terse: both groups inherit Terse.
   os.zassert.global_terse:
     extra_configs:
@@ -53,12 +53,12 @@ tests:
   os.zassert.both_normal:
     extra_configs:
       - CONFIG_ASSERT_MODULE_MYMODULE_LEVEL_NORMAL=y
-      - CONFIG_ASSERT_MODULE_DEFAULT_LEVEL_NORMAL=y
+      - CONFIG_ASSERT_MODULE_UNNAMED_LEVEL_NORMAL=y
   # Different level per group.
   os.zassert.mixed:
     extra_configs:
       - CONFIG_ASSERT_MODULE_MYMODULE_LEVEL_NORMAL=y
-      - CONFIG_ASSERT_MODULE_DEFAULT_LEVEL_VERBOSE=y
+      - CONFIG_ASSERT_MODULE_UNNAMED_LEVEL_VERBOSE=y
   # Master switch off: every group forced OFF regardless of its config.
   os.zassert.disabled:
     extra_configs:
