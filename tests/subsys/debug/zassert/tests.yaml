@@ -3,7 +3,9 @@ common:
     - assert
   integration_platforms:
     - native_sim
+    - qemu_x86
   platform_allow:
+    - qemu_x86
     - native_sim
 
 tests:
@@ -17,22 +19,36 @@ tests:
     extra_configs:
       - CONFIG_ASSERT_MODULE_MYMODULE_LEVEL_TERSE=y
       - CONFIG_ASSERT_MODULE_DEFAULT_LEVEL_TERSE=y
-  # MYMODULE forced to Terse; DEFAULT stays at its Verbose default.
+  # MYMODULE forced to Terse; DEFAULT stays at the system-wide Verbose default.
   os.zassert.mymodule_terse:
     extra_configs:
       - CONFIG_ASSERT_MODULE_MYMODULE_LEVEL_TERSE=y
-  # DEFAULT forced to Terse; MYMODULE stays at its Verbose default.
+  # DEFAULT forced to Terse; MYMODULE stays at the system-wide Verbose default.
   os.zassert.default_terse:
     extra_configs:
       - CONFIG_ASSERT_MODULE_DEFAULT_LEVEL_TERSE=y
-  # MYMODULE raised to Verbose; DEFAULT stays at its Verbose default.
+  # MYMODULE raised to Verbose; DEFAULT stays at the system-wide Verbose default.
   os.zassert.mymodule_verbose:
     extra_configs:
       - CONFIG_ASSERT_MODULE_MYMODULE_LEVEL_VERBOSE=y
-  # DEFAULT raised to Verbose; MYMODULE stays at its Verbose default.
+  # DEFAULT raised to Verbose; MYMODULE stays at the system-wide Verbose default.
   os.zassert.default_verbose:
     extra_configs:
       - CONFIG_ASSERT_MODULE_DEFAULT_LEVEL_VERBOSE=y
+  # System-wide default Terse: both groups inherit Terse.
+  os.zassert.global_terse:
+    extra_configs:
+      - CONFIG_ASSERT_DEFAULT_LEVEL_TERSE=y
+  # System-wide default Terse; MYMODULE overridden to Verbose.
+  os.zassert.global_terse_mymodule_verbose:
+    extra_configs:
+      - CONFIG_ASSERT_DEFAULT_LEVEL_TERSE=y
+      - CONFIG_ASSERT_MODULE_MYMODULE_LEVEL_VERBOSE=y
+  # Legacy option derives the system-wide default; both groups inherit Terse.
+  os.zassert.legacy_no_msg_info:
+    extra_configs:
+      - CONFIG_ASSERT_NO_MSG_INFO=y
+      - CONFIG_WARN_DEPRECATED=n
   # Both groups Normal (checked, no message).
   os.zassert.both_normal:
     extra_configs:

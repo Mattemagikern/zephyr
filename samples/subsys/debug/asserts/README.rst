@@ -30,8 +30,10 @@ The choice produces the non-assignable integer symbol
 :kconfig:option:`CONFIG_ASSERT_MODULE_MYMODULE_LEVEL`, whose value is
 ``ZASSERT_LEVEL_OFF`` (0), ``ZASSERT_LEVEL_TERSE`` (1),
 ``ZASSERT_LEVEL_NORMAL`` (2), or ``ZASSERT_LEVEL_VERBOSE`` (3).
-The choice defaults to ``ZASSERT_LEVEL_VERBOSE``.
-This sample keeps that default in :file:`prj.conf` by selecting the verbose setting.
+The choice defaults to the system-wide level selected by ``CONFIG_ASSERT_DEFAULT_LEVEL_*``,
+which is ``ZASSERT_LEVEL_VERBOSE`` unless configured otherwise.
+This sample selects the verbose setting in :file:`prj.conf`, so the module stays verbose even
+when the system-wide level is lowered, for example with ``CONFIG_ASSERT_DEFAULT_LEVEL_TERSE=y``.
 The master :kconfig:option:`CONFIG_ASSERT` setting must also be enabled, when it is
 disabled, all module assertions are compiled out regardless of their configured
 levels.
