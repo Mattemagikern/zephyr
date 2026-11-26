@@ -19,6 +19,8 @@ sys.path.insert(0, str(ZEPHYR_BASE / "doc" / "_extensions"))
 # modules.
 sys.path.insert(0, str(ZEPHYR_BASE / "doc" / "_scripts"))
 
+sys.path.append(str(ZEPHYR_BASE / "scripts" / "release"))
+
 # Add the directory which contains the runners package as well,
 # for autodoc directives on runners.xyz.
 sys.path.insert(0, str(ZEPHYR_BASE / "scripts" / "west_commands"))
@@ -113,6 +115,7 @@ extensions = [
     "sphinx_copybutton",
     "sphinx_togglebutton",
     "zephyr.external_content",
+    "zephyr.release_notes",
     "zephyr.domain",
     "zephyr.api_overview",
     "zephyr.partial_build",
@@ -141,6 +144,8 @@ RELEASE_NOTES_GLOB_PATTERNS = [
     "releases/migration-guide-4.[0-3].rst",
 ]
 exclude_patterns.extend(RELEASE_NOTES_GLOB_PATTERNS)
+exclude_patterns.append("releases/template/**")
+exclude_patterns.append("releases/draft/fragments/**")
 
 # Ensure only one of the two top-level indexes ever gets included.
 # This is a workaround for Sphinx issuing INFO notices about being referenced in

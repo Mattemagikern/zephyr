@@ -1,0 +1,106 @@
+# SPDX-FileCopyrightText: The Zephyr Project Contributors
+# SPDX-License-Identifier: Apache-2.0
+
+extra-areas: [Tree-wide changes]
+
+sections:
+  Tree-wide changes: [Tree-wide changes]
+
+  Architectures: ["* arch", Common Architecture Interface, ACPI]
+
+  Bluetooth:
+    split: ["Bluetooth *"]
+
+  Boards and SoCs:
+    - "* platforms*"
+    - "* platform"
+    - NXP Platform Wireless
+    - Board/SoC configuration
+    - Boards/SoCs
+    - Shields
+    - nRF BSIM
+
+  Build system and tooling:
+    - Build system
+    - Sysbuild
+    - Kconfig
+    - Linker Scripts
+    - West
+    - "Toolchain *"
+    - SPDX Tooling
+    - DT Doctor
+    - Linters and Static Analyzers
+    - Binary Descriptors
+
+  Debugging and tracing:
+    split: [Debug, "Debug: *", DAP, Tracing, Instrumentation Subsystem, Logging, Shell, Console,
+            Stats]
+
+  Device management and DFU:
+    split: [DFU, Bootloaders, MCU Manager, hawkBit, "mgmt: *", EC Host Commands, OSDP]
+
+  Devicetree: [Devicetree, Devicetree Bindings]
+
+  Drivers:
+    areas: [Device Driver Model]
+    subsections:
+      Sensors: ["Drivers: Sensors", "Drivers: Wurth Elektronik Sensors", "* Sensors"]
+      Wi-Fi: ["Drivers: Wi-Fi*"]
+      Display: [Display controllers]
+      Biometrics: [Biometrics Drivers]
+      Interrupt controllers: [Interrupt Handling]
+      Vendor drivers: [NXP Platform Drivers, Microchip Standalone Devices]
+    split: ["Drivers: *", ARM SiP SVC, Cache, OTP, Emulation]
+
+  Kernel: [Kernel, Userspace, Demand Paging]
+
+  Libraries:
+    split: [Base OS, C library, C++, CRC, Division by Reciprocal, Formatted Output,
+            Hash Utilities, Heap Management, JSON Web Token, Memory Management, UUID, Utilities]
+
+  Modules:
+    split: ["West project: *"]
+
+  Networking:
+    areas: [Networking, Networking Buffers]
+    subsections:
+      LoRa and LoRaWAN: ["LoRa*"]
+    split: ["Networking: *", Modem, Modbus]
+
+  Other subsystems:
+    split: [DSP subsystem, IPC, Input, Linkable Loadable Extensions, Multimedia Pipeline,
+            Open AMP, PMCI, Precision Timing, RTIO, Sensor Subsystem, State machine framework,
+            Task Watchdog, Video Subsystem, zbus]
+
+  Portability layers:
+    split: [POSIX API layer, CMSIS API layer, CMSIS-DSP integration, CMSIS-NN integration, Rust]
+
+  Power management: [Power management, CPU Frequency Scaling]
+
+  Project and documentation:
+    - Documentation
+    - Documentation Infrastructure
+    - Wiki
+    - Coding Guidelines
+    - Safety
+    - Release
+    - MAINTAINERS file
+    - Continuous Integration
+    - Build Dashboard
+
+  Samples and testing:
+    - Samples
+    - Benchmarks
+    - Tests
+    - Testing
+    - Testing with Renode
+    - Test Framework (Ztest)
+    - Twister
+
+  Security: [Security, Secure storage, Authentication, "Authentication: *", Random]
+
+  Storage:
+    split: [Storage, Storage ZMS, Disk, Filesystems, Little FS, VFS, Key-Value Storage Systems,
+            Settings, Retention, NVMEM]
+
+  USB: [USB, USB-C]

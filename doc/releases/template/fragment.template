@@ -1,0 +1,34 @@
+..
+  SPDX-FileCopyrightText: The Zephyr Project Contributors
+  SPDX-License-Identifier: CC-BY-4.0
+
+..
+  Copy this file to doc/releases/draft/fragments/<descriptive-name>.rst and fill it in.
+
+  ::area:: must name an area in MAINTAINERS.yml, or "Tree-wide changes" for a change that affects
+  applications across the tree.
+  ::pr:: is the number of the pull request that adds this fragment; list several separated by
+  commas when the change spans more than one.
+  Write one fragment per change. A change with several points gets one fragment with a short
+  lead sentence and a list, not one fragment per point.
+  Fill in ::release-notes::, ::migration-guide:: or both, and delete the one you do not need. Each
+  feeds the document of the same name, and the generated entries link to each other, so describe
+  the capability in one and the required action in the other instead of repeating it.
+
+  The security notice is not built from fragments: the security team curates it in
+  doc/releases/draft/security-notice.rst.inc.
+
+  Markers start at column 0 and their content runs until the next marker. Content is regular
+  reStructuredText: paragraphs, lists and code-block directives are all allowed, section
+  headings are not.
+
+  Validate with: scripts/release/release_fragments.py check
+
+::area:: Component
+::pr:: 12345
+
+::release-notes::
+.. What changed and why it matters to users.
+
+::migration-guide::
+.. What an application must change, and what to use instead of anything deprecated or removed.

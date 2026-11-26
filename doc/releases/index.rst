@@ -88,6 +88,14 @@ End-of-life releases are no longer maintained and do not receive security fixes.
 The release notes and migration guides for these releases are available
 :ref:`here <eol_releases>`.
 
+Release Documents
+*****************
+
+.. toctree::
+   :maxdepth: 1
+
+   draft/index
+
 .. _zephyr_release_cycle:
 
 Release Life Cycle and Maintenance
@@ -247,7 +255,7 @@ The release manager regenerates the inventory for each release candidate and for
 for example::
 
    scripts/release/gen_change_inventory.py --title "Zephyr 4.6 change inventory" \
-       v4.5.0 v4.6.0-rc1 doc/releases/change-inventory-4.6
+       --label change_inventory_4.6 v4.5.0 v4.6.0-rc1 doc/releases/zephyr-4.6/change-inventory
 
 .. _`GitHub repository`: https://github.com/zephyrproject-rtos/zephyr
 .. _`GitHub tagged releases`: https://github.com/zephyrproject-rtos/zephyr/tags
