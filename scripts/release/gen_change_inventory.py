@@ -1252,7 +1252,16 @@ def describe(rev: str) -> str:
     return git("rev-parse", "--short=12", f"{rev}^{{commit}}")
 
 
-def render(start: str, end: str, old: dict, new: dict, names: list[str], outdir: Path, title: str):
+def render(
+    start: str,
+    end: str,
+    old: dict,
+    new: dict,
+    names: list[str],
+    outdir: Path,
+    title: str,
+    label: str,
+):
     outdir.mkdir(parents=True, exist_ok=True)
     vendors = new.get("vendors") or old.get("vendors") or {}
     header = [
@@ -1266,7 +1275,7 @@ def render(start: str, end: str, old: dict, new: dict, names: list[str], outdir:
         page_title, renderer = CATEGORIES[name]
         rst = Rst()
         rst.lines += header
-        rst.lines += [f".. _change_inventory_{name}:", ""]
+        rst.lines += [f".. _{label}_{name}:", ""]
         rst.title(page_title)
         renames = detect_renames(start, end, name, old[name], new[name])
         summary[name] = renderer(
@@ -1276,7 +1285,7 @@ def render(start: str, end: str, old: dict, new: dict, names: list[str], outdir:
 
     rst = Rst()
     rst.lines += header
-    rst.lines += [".. _change_inventory:", ""]
+    rst.lines += [f".. _{label}:", ""]
     rst.title(title)
     rst.para(
         f"Interfaces and configuration added, removed or changed between\n"
@@ -1289,7 +1298,7 @@ def render(start: str, end: str, old: dict, new: dict, names: list[str], outdir:
         f"     - {c.capitalize()}" for c in columns
     ]
     for name in names:
-        rst.lines.append(f"   * - :ref:`{CATEGORIES[name][0]} <change_inventory_{name}>`")
+        rst.lines.append(f"   * - :ref:`{CATEGORIES[name][0]} <{label}_{name}>`")
         for c in columns:
             v = summary[name].get(c)
             rst.lines.append(f"     - {v}" if v is not None else "     -")
@@ -1322,6 +1331,11 @@ def main():
     )
     parser.add_argument("--no-cache", action="store_true", help="do not read or write the cache")
     parser.add_argument("--title", default=None, help="title of the index page")
+    parser.add_argument(
+        "--label",
+        default="change_inventory",
+        help="prefix of the reference labels, unique per release (default: %(default)s)",
+    )
     parser.add_argument("start", nargs="?", metavar="START", help="start revision")
     parser.add_argument("end", nargs="?", metavar="END", help="end revision, '.' for the tree")
     parser.add_argument("outdir", nargs="?", type=Path, metavar="OUTDIR")
@@ -1340,7 +1354,7 @@ def main():
     old = snapshot(args.start, collectors, cache_dir)
     new = snapshot(args.end, collectors, cache_dir)
     title = args.title or f"Change inventory: {args.start} to {args.end}"
-    summary = render(args.start, args.end, old, new, names, args.outdir, title)
+    summary = render(args.start, args.end, old, new, names, args.outdir, title, args.label)
     for name, counts in summary.items():
         log(f"{name:10s} " + "  ".join(f"{k}={v}" for k, v in counts.items()))
 
