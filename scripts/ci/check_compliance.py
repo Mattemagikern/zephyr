@@ -62,6 +62,7 @@ import list_boards
 import list_hardware
 from get_maintainer import Maintainers, MaintainersError
 from list_undocumented_licenses import undocumented
+from release import release_fragments
 
 sys.path.insert(
     0, str(Path(__file__).resolve().parents[2] / "scripts" / "dts" / "python-devicetree" / "src")
@@ -2420,6 +2421,22 @@ class TestMetadataFilename(ComplianceTest):
                     f"file named 'tests.yaml'. Rename it to "
                     f"'{os.path.join(os.path.dirname(file), 'tests.yaml')}'."
                 )
+
+
+class ReleaseFragments(ComplianceTest):
+    name = "ReleaseFragments"
+    doc = zephyr_doc_detail_builder("/releases/index.html#release-documentation")
+
+    def run(self):
+        try:
+            problems = release_fragments.check_fragments()
+        except (OSError, ValueError) as err:
+            self.failure(str(err))
+            return
+
+        for path, line, message in problems:
+            file = os.path.relpath(path, GIT_TOP)
+            self.fmtd_failure("error", "ReleaseFragments", file, line, desc=message)
 
 
 class ImageSize(ComplianceTest):
