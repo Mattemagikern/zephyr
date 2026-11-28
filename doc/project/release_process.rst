@@ -620,12 +620,28 @@ each release candidate, the final release and after the release, for example::
 Release Documentation
 =====================
 
-The working drafts ``doc/releases/release-notes-draft.rst`` and
-``doc/releases/migration-guide-draft.rst`` are renamed to the release version
-when the stabilization phase starts, and new drafts for the following release
-are created from the templates. The change inventory is regenerated for each
-release candidate and for the release, as described in
-:ref:`change_inventory_guidelines`.
+The documents of the next release are drafted in :zephyr_file:`doc/releases/draft`, as
+described in :ref:`release_documentation`. Until the release, the working draft is built like a
+release: the release notes and the migration guide are generated from the fragments on every
+documentation build, and the release manager regenerates the change inventory of the draft for
+each release candidate and commits it::
+
+    $ west release-fragment inventory
+
+As part of the release, before the release is tagged, the release team completes the
+highlights in ``doc/releases/draft/highlights.rst.inc``, the security team completes the
+security notice, and the release manager freezes the draft::
+
+    $ west release-fragment freeze --next 4.7.0
+
+``freeze`` writes the documents of the release into ``doc/releases/zephyr-X.Y`` from the
+templates in :zephyr_file:`doc/releases/template`, the fragments, the highlights and the
+security notice, generates the final change inventory and adds the release to
+:zephyr_file:`doc/releases/index.rst`. It then empties the draft and, with ``--next``, points
+the draft at the following release. Frozen documents are plain files that are never
+regenerated: maintainers correct them by editing ``doc/releases/zephyr-X.Y`` directly, and
+fragments merged after the freeze target the following release. The change inventory is
+described in :ref:`change_inventory_guidelines`.
 
 Tagging
 =======
@@ -744,7 +760,7 @@ steps:
         #. Find the new ``v1.11.0`` tag at the top of the releases page and
            edit the release with the ``Edit tag`` button with the following:
 
-            * Copy the overview of ``docs/releases/release-notes-1.11.rst``
+            * Copy the overview of ``doc/releases/zephyr-1.11/release-notes.rst``
               into the release notes textbox and link to the full release notes
               file on docs.zephyrproject.org.
 

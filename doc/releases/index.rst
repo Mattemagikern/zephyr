@@ -177,18 +177,66 @@ For more information, see  :ref:`Security Vulnerability Reporting <reporting>`.
 Release documentation
 *********************
 
-Each release is documented in three related documents, each with a distinct purpose:
+Each release is documented in four related documents, each with a distinct purpose:
 
 - Release notes document the capabilities and the impact of the release.
 - Migration guides document the actions required when moving an application from one major
   release to the next.
+- The security notice documents the advisories, hardening changes and security-relevant actions
+  of the release.
 - The change inventory, generated from the tree and published as an appendix to the release notes,
   documents the individual interface and configuration changes.
 
-During the development cycle, contributors add to the working drafts for the next release,
-:zephyr_file:`doc/releases/release-notes-draft.rst` and
-:zephyr_file:`doc/releases/migration-guide-draft.rst`, in the same pull request as the change
-they describe. An entry that misses a release stays in the draft and targets the next one.
+The documents of the next release are assembled in :zephyr_file:`doc/releases/draft` and published
+as the :doc:`working draft <draft/index>`. The release notes and the migration guide are built
+from fragments that contributors add with their changes. The release team writes the highlights
+in :zephyr_file:`doc/releases/draft/highlights.rst.inc`, and the security team curates the
+security notice in :zephyr_file:`doc/releases/draft/security-notice.rst.inc`.
+
+.. _release_fragments:
+
+Release Note Fragments
+======================
+
+A fragment is a file in :zephyr_file:`doc/releases/draft/fragments` that describes one change. It
+is added in the same pull request as the change. A fragment that misses a release stays in the
+draft and targets the next one.
+
+Create a fragment with ``west release-fragment new``. The command asks for the area of the
+change, with completion and search over the areas, for the pull request number and for a file
+name. Scripts and experienced users give everything on the command line instead::
+
+   west release-fragment new i2c-target-mode --area "Drivers: I2C" --pr 12345
+
+The command creates the fragment from :zephyr_file:`doc/releases/template/fragment.template`, with
+a release notes and a migration guide entry, and prints the section it is listed in. Fill in the
+entries and delete the one you do not need. Without a pull request number, fill in ``::pr::`` once
+the pull request is open. A completed fragment looks like this::
+
+   ::area:: Drivers: I2C
+   ::pr:: 12345
+
+   ::release-notes::
+   I2C controllers can now operate in target mode.
+
+   ::migration-guide::
+   ``CONFIG_I2C_TARGET_BUFFER_SIZE`` was renamed to ``CONFIG_I2C_TARGET_BUF_SIZE``.
+
+- ``::area::`` names an area from :zephyr_file:`MAINTAINERS.yml`, or ``Tree-wide changes`` for a
+  change that affects applications across the tree. :zephyr_file:`doc/releases/sections.yml`
+  maps each area to a section and subsection of the documents. Sections, subsections and entries
+  are sorted alphabetically.
+- ``::pr::`` lists the pull request numbers, separated by commas. Each entry links to its pull
+  requests, and fragments with the same pull requests in the same subsection are merged into one
+  entry.
+- ``::release-notes::`` and ``::migration-guide::`` hold the entry for the document of the same
+  name. Fill in one or both; when both are present, the two entries link to each other. Entries are
+  reStructuredText: paragraphs, lists and code blocks are allowed, section headings are not.
+- A change with several points gets one fragment with a short lead sentence and a list, not one
+  fragment per point.
+
+``west release-fragment check`` validates the fragments, as CI does in the compliance checks, and
+``west release-fragment render`` prints the generated documents.
 
 .. _release_notes_guidelines:
 
@@ -238,6 +286,16 @@ Each entry in the migration guide must include a brief explanation of the change
 as well as refer to the Pull Request that introduced it, in order for the user
 to be able to understand the context of the change.
 
+.. _security_notice_guidelines:
+
+Security Notice
+===============
+
+The security notice is not built from fragments. The security team curates it in
+:zephyr_file:`doc/releases/draft/security-notice.rst.inc`: the advisories addressed by the release,
+hardening changes and the actions users should take. See :ref:`reporting` for how vulnerabilities
+are disclosed.
+
 .. _change_inventory_guidelines:
 
 Change Inventory
@@ -251,11 +309,9 @@ edited by hand: contributors do not list new or removed items in the release not
 the item is documented where the inventory links to, such as the binding description, the Kconfig
 help text, the API documentation or the board page.
 
-The release manager regenerates the inventory for each release candidate and for the release,
-for example::
-
-   scripts/release/gen_change_inventory.py --title "Zephyr 4.6 change inventory" \
-       --label change_inventory_4.6 v4.5.0 v4.6.0-rc1 doc/releases/zephyr-4.6/change-inventory
+The release manager regenerates the inventory of the working draft, from the previous release to
+the current tree, for each release candidate with ``west release-fragment inventory``. Freezing
+the draft for the release generates the final inventory of the release.
 
 .. _`GitHub repository`: https://github.com/zephyrproject-rtos/zephyr
 .. _`GitHub tagged releases`: https://github.com/zephyrproject-rtos/zephyr/tags
