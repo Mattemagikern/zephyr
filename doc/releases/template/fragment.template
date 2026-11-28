@@ -3,7 +3,8 @@
   SPDX-License-Identifier: CC-BY-4.0
 
 ..
-  Copy this file to doc/releases/draft/fragments/<descriptive-name>.rst and fill it in.
+  Create a fragment with: west release-fragment new
+  or copy this file to doc/releases/draft/fragments/<descriptive-name>.rst and fill it in.
 
   ::area:: must name an area in MAINTAINERS.yml, or "Tree-wide changes" for a change that affects
   applications across the tree.

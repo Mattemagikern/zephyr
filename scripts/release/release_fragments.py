@@ -29,7 +29,9 @@ DOCUMENTS = {
     "migration-guide": "migration guide",
 }
 CURATED = ("highlights.rst.inc", "security-notice.rst.inc")
+FRAGMENT_TEMPLATE = TEMPLATE_DIR / "fragment.template"
 INVENTORY = "change-inventory"
+FRAGMENT_NAME = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
 META_TAGS = ("area", "pr")
 TAG_PATTERN = re.compile(r"^::\s*([\w-]+)\s*::", re.MULTILINE)
 PR_PATTERN = re.compile(r"#?(\d+)")
@@ -163,15 +165,19 @@ def derived_subsection(area, section):
     return name.removeprefix(f"{section} ") if name != section else name
 
 
+def unknown_area(area, areas):
+    matches = difflib.get_close_matches(area, sorted(areas), n=3)
+    hint = f" (did you mean {', '.join(map(repr, matches))}?)" if matches else ""
+    return f"unknown area {area!r}{hint}"
+
+
 def placement_of(fragment, areas, sections):
     area = fragment["area"]
     path = fragment["path"]
     line = fragment["area_line"]
 
     if area not in areas:
-        matches = difflib.get_close_matches(area, sorted(areas), n=3)
-        hint = f" (did you mean {', '.join(map(repr, matches))}?)" if matches else ""
-        raise fragment_error(path, line, f"unknown area {area!r}{hint}")
+        raise fragment_error(path, line, unknown_area(area, areas))
 
     for title, section_areas, subsections in sections:
         for subtitle, subsection_areas in subsections:
@@ -349,6 +355,158 @@ def cmd_check(args):
     return 1 if problems else 0
 
 
+def new_fragment(area, prs):
+    blocks = read_blocks(FRAGMENT_TEMPLATE)
+    lines = [f"::area:: {area}", f"::pr:: {', '.join(prs)}".rstrip()]
+    for document in DOCUMENTS:
+        lines += ["", f"::{document}::", blocks[document][0]]
+    return "\n".join(lines) + "\n"
+
+
+def parse_prs(text):
+    prs = text.replace(",", " ").split()
+    if not all(PR_PATTERN.fullmatch(pr) for pr in prs):
+        raise ValueError(f"{text!r}: expected pull request numbers, e.g. 12345")
+    return [PR_PATTERN.fullmatch(pr).group(1) for pr in prs]
+
+
+def ask(prompt, default=""):
+    answer = input(f"{prompt} [{default}]: " if default else f"{prompt}: ").strip()
+    return answer or default
+
+
+def enable_completion(words):
+    try:
+        import readline
+    except ImportError:
+        return
+
+    def complete(text, state):
+        found = [word for word in words if word.casefold().startswith(text.casefold())]
+        return found[state] if state < len(found) else None
+
+    readline.set_completer(complete)
+    readline.set_completer_delims("")
+    if "libedit" in (readline.__doc__ or ""):
+        readline.parse_and_bind("bind ^I rl_complete")
+    else:
+        readline.parse_and_bind("tab: complete")
+
+
+def matching_areas(query, areas):
+    query = query.casefold()
+    found = [area for area in areas if query in area.casefold()]
+    return found or difflib.get_close_matches(query, areas, n=10, cutoff=0.5)
+
+
+def ask_area(areas):
+    areas = sorted(areas, key=str.casefold)
+    enable_completion(areas)
+    query = ask("Area (Tab completes; part of a name lists the matches)")
+    while True:
+        if query in areas:
+            return query
+        found = matching_areas(query, areas) if query else []
+        if len(found) == 1:
+            print(f"area: {found[0]}")
+            return found[0]
+        if not found:
+            query = ask("No matching area, search again")
+            continue
+        for number, area in enumerate(found[:20], 1):
+            print(f"  {number:2}. {area}")
+        if len(found) > 20:
+            print(f"  ... {len(found) - 20} more, narrow the search")
+        query = ask("Number, or search again")
+        if query.isdigit() and 1 <= int(query) <= min(len(found), 20):
+            return found[int(query) - 1]
+
+
+def ask_prs():
+    while True:
+        try:
+            return parse_prs(ask("Pull request number (empty if not open yet)"))
+        except ValueError as err:
+            print(err)
+
+
+def default_name(area, prs, fragments_dir):
+    stem = "-".join([re.sub(r"[^a-z0-9]+", "-", area.casefold()).strip("-"), *prs])
+    name, counter = stem, 2
+    while (fragments_dir / f"{name}.rst").exists():
+        name, counter = f"{stem}-{counter}", counter + 1
+    return name
+
+
+def name_problem(name, fragments_dir):
+    if not FRAGMENT_NAME.fullmatch(name):
+        return f"{name!r}: use lowercase letters, digits and dashes"
+    path = fragments_dir / f"{name}.rst"
+    if path.exists():
+        return f"{display_path(path)} already exists"
+    return None
+
+
+def ask_name(default, fragments_dir):
+    while True:
+        name = ask("File name", default)
+        problem = name_problem(name, fragments_dir)
+        if problem is None:
+            return name
+        print(problem)
+
+
+def fragments_for(prs, fragments_dir):
+    found = []
+    for path in fragment_files(fragments_dir):
+        try:
+            text, _ = read_blocks(path).get("pr", ("", 1))
+            if set(parse_prs(text)) & set(prs):
+                found.append(path)
+        except ValueError:
+            continue
+    return found
+
+
+def cmd_new(args):
+    areas, sections = load_config()
+    fragments_dir = args.draft / "fragments"
+    prs = parse_prs(",".join(args.pr))
+    if args.name is not None and name_problem(args.name, fragments_dir):
+        raise ValueError(name_problem(args.name, fragments_dir))
+    if args.area is not None and args.area not in areas:
+        raise ValueError(unknown_area(args.area, areas))
+    if args.area is None or args.name is None:
+        if not sys.stdin.isatty():
+            raise ValueError("give NAME and --area, or run in a terminal to be asked")
+        try:
+            area = args.area or ask_area(areas)
+            prs = prs or ask_prs()
+            name = args.name or ask_name(default_name(area, prs, fragments_dir), fragments_dir)
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return 130
+    else:
+        area, name = args.area, args.name
+
+    path = fragments_dir / f"{name}.rst"
+    placement = placement_of({"area": area, "path": path, "area_line": 1}, areas, sections)
+    same_pr = fragments_for(prs, fragments_dir)
+    try:
+        with path.open("x", encoding="utf-8") as fragment:
+            fragment.write(new_fragment(area, prs))
+    except FileExistsError:
+        raise ValueError(f"{display_path(path)} already exists") from None
+
+    print(f"created {display_path(path)}, listed under {' / '.join(filter(None, placement))}")
+    for other in same_pr:
+        print(f"{display_path(other)} covers the same pull request: consider adding to it instead")
+    print("fill in the entries and delete the one you do not need")
+    if not prs:
+        print("fill in ::pr:: once the pull request is open")
+    return 0
+
+
 def cmd_render(args):
     grouped = load_fragments(args.draft / "fragments", *load_config())
     for document in args.document or DOCUMENTS:
@@ -471,9 +629,9 @@ def cmd_freeze(args):
         print(f"generate {output / 'change-inventory'} with {display_path(INVENTORY_SCRIPT)}")
 
 
-def main(argv=None):
+def main(argv=None, prog=None):
     parser = argparse.ArgumentParser(
-        description="Manage release note fragments.", allow_abbrev=False
+        prog=prog, description="Manage release note fragments.", allow_abbrev=False
     )
     parser.add_argument("--draft", type=Path, default=DRAFT_DIR, help="draft directory")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -485,6 +643,16 @@ def main(argv=None):
     render_cmd = commands.add_parser("render", help="print the generated draft documents")
     render_cmd.add_argument("--document", action="append", choices=list(DOCUMENTS))
     render_cmd.set_defaults(func=cmd_render)
+
+    new_cmd = commands.add_parser(
+        "new", help="create a fragment, asking for anything not given on the command line"
+    )
+    new_cmd.add_argument(
+        "name", nargs="?", help="file name without .rst, e.g. drivers-i2c-target-mode"
+    )
+    new_cmd.add_argument("-a", "--area", help="area from MAINTAINERS.yml")
+    new_cmd.add_argument("-p", "--pr", action="append", default=[], help="pull request number")
+    new_cmd.set_defaults(func=cmd_new)
 
     inventory = commands.add_parser(
         "inventory", help="regenerate the change inventory of the draft"

@@ -67,6 +67,11 @@ west-commands:
       - name: spdx
         class: ZephyrSpdx
         help: create SPDX bill of materials
+  - file: scripts/west_commands/release_fragment.py
+    commands:
+      - name: release-fragment
+        class: ReleaseFragment
+        help: create and check release note fragments
   - file: scripts/west_commands/blobs.py
     commands:
       - name: blobs
