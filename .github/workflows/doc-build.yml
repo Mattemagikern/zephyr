@@ -49,6 +49,7 @@ jobs:
           **/Kconfig*
           west.yml
           scripts/dts/
+          scripts/release/release_fragments.py
           .github/workflows/doc-build.yml
           scripts/pylib/pytest-twister-harness/src/twister_harness/device/device_adapter.py
           scripts/pylib/pytest-twister-harness/src/twister_harness/helpers/shell.py
